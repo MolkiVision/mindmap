@@ -1,8 +1,8 @@
-const ROWS: [string, string][] = [
+const ROWS: [string, string, boolean?][] = [
   ['Tab', 'nový podradený uzol'],
   ['Enter', 'nový súrodenec (Ctrl+Enter: podradený)'],
   ['Space / F2 / dvojklik', 'upraviť text uzla'],
-  ['písanie', 'začne upravovať a nahradí text'],
+  ['Písanie', 'začne upravovať a nahradí text', true],
   ['Shift+Enter (pri úprave)', 'nový riadok v uzle'],
   ['Tab (pri úprave)', 'uložiť a vytvoriť podradený'],
   ['Esc', 'zrušiť úpravu / odznačiť'],
@@ -13,8 +13,8 @@ const ROWS: [string, string][] = [
   ['Ctrl + Z / Ctrl + Shift + Z', 'späť / znova'],
   ['Ctrl + K', 'hľadať čokoľvek'],
   ['?', 'táto nápoveda'],
-  ['ťahanie uzla na iný uzol', 'presunúť pod iný uzol'],
-  ['koliesko / ťahanie plátna', 'posun, Ctrl + koliesko: zoom'],
+  ['Ťahanie uzla na iný uzol', 'presunúť pod iný uzol', true],
+  ['Koliesko alebo ťahanie plátna', 'posun, Ctrl + koliesko: zoom', true],
 ]
 
 export function HelpDialog({ onClose }: { onClose: () => void }) {
@@ -24,11 +24,9 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
         <h3>Klávesové skratky</h3>
         <table>
           <tbody>
-            {ROWS.map(([k, v]) => (
+            {ROWS.map(([k, v, plain]) => (
               <tr key={k}>
-                <td>
-                  <kbd>{k}</kbd>
-                </td>
+                <td>{plain ? <span className="muted">{k}</span> : <kbd>{k}</kbd>}</td>
                 <td>{v}</td>
               </tr>
             ))}

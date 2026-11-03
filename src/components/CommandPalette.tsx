@@ -66,7 +66,9 @@ export function CommandPalette() {
       })
     }
     const filteredActions = actions.filter((a) => !ql || a.title.toLowerCase().includes(ql) || a.key !== 'a-journal')
-    return [...(ql ? out : []), ...filteredActions, ...(ql ? [] : out)].slice(0, 60)
+    const order = ['Akcie', 'Mapy', 'Uzly', 'Poznámky', 'Denník']
+    const grouped = (items: Item[]) => [...items].sort((a, b) => order.indexOf(a.group) - order.indexOf(b.group))
+    return (ql ? [...grouped(out), ...filteredActions] : [...filteredActions, ...grouped(out)]).slice(0, 60)
   }, [q, maps, entities, goToMap, createMap, openNote, createNote, openJournal, goToEntity])
 
   if (!open) return null
@@ -81,7 +83,7 @@ export function CommandPalette() {
       <div className="palette" onMouseDown={(e) => e.stopPropagation()}>
         <input
           ref={ref}
-          placeholder="Hľadaj mapy, uzly, poznámky, denník… alebo napíš názov novej mapy"
+          placeholder="Hľadať alebo vytvoriť"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => {
