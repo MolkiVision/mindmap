@@ -1,0 +1,61 @@
+import { memo } from 'react'
+import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, type Edge, type EdgeProps } from '@xyflow/react'
+import { useStore } from '../lib/store'
+
+export type TreeEdgeType = Edge<{ color: string; depth: number }, 'tree'>
+export type RelEdgeType = Edge<{ color: string; label: string; linkId: string; directed: boolean; emphasized: boolean }, 'rel'>
+
+function TreeEdgeImpl({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<TreeEdgeType>) {
+  const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, curvature: 0.35 })
+  const depth = data?.depth ?? 1
+  const width = Math.max(1.5, 4 - depth * 0.8)
+  return <BaseEdge path={path} style={{ stroke: data?.color, strokeWidth: width, opacity: 0.85 }} />
+}
+export const TreeEdge = memo(TreeEdgeImpl)
+
+function RelEdgeImpl({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected }: EdgeProps<RelEdgeType>) {
+  const removeLink = useStore((s) => s.removeLink)
+  // Relation edges leave from the node's outer side; add a little curvature so they arc over the tree.
+  const [path, lx, ly] = getBezierPath({
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition: sourcePosition ?? Position.Right,
+    targetPosition: targetPosition ?? Position.Left,
+    curvature: 0.6,
+  })
+  const color = data?.color ?? '#94a3b8'
+  return (
+    <>
+      <BaseEdge
+        id={id}
+        path={path}
+        className="rel-edge"
+        markerEnd={data?.directed ? `url(#arrow-${id})` : undefined}
+        style={{ stroke: color, strokeWidth: selected ? 2.5 : 1.8, opacity: data?.emphasized === false ? 0.35 : 0.9 }}
+      />
+      <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+        <defs>
+          <marker id={`arrow-${id}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill={color} />
+          </marker>
+        </defs>
+      </svg>
+      <EdgeLabelRenderer>
+        <div
+          className={`rel-edge-label nodrag nopan ${data?.emphasized === false ? 'dim' : ''}`}
+          style={{ left: lx, top: ly, '--rc': color } as React.CSSProperties}
+          title="Kliknutím odstrániš vzťah"
+          onClick={(e) => {
+            e.stopPropagation()
+            if (data && confirm(`Odstrániť vzťah „${data.label}“?`)) removeLink(data.linkId)
+          }}
+        >
+          {data?.label}
+        </div>
+      </EdgeLabelRenderer>
+    </>
+  )
+}
+export const RelEdge = memo(RelEdgeImpl)
