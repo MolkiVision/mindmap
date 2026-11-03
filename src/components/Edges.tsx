@@ -8,8 +8,8 @@ export type RelEdgeType = Edge<{ color: string; label: string; linkId: string; d
 function TreeEdgeImpl({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<TreeEdgeType>) {
   const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, curvature: 0.35 })
   const depth = data?.depth ?? 1
-  const width = Math.max(1.25, 2.5 - depth * 0.5)
-  return <BaseEdge path={path} style={{ stroke: data?.color, strokeWidth: width, opacity: 0.7 }} />
+  const width = Math.max(1.5, 4 - depth * 0.8)
+  return <BaseEdge path={path} style={{ stroke: data?.color, strokeWidth: width, opacity: 0.85 }} />
 }
 export const TreeEdge = memo(TreeEdgeImpl)
 
@@ -34,7 +34,7 @@ function RelEdgeImpl({ id, sourceX, sourceY, targetX, targetY, sourcePosition, t
         path={path}
         className="rel-edge"
         markerEnd={data?.directed ? `url(#arrow-${id})` : undefined}
-        style={{ stroke: color, strokeWidth: selected ? 2 : 1.5, opacity: data?.emphasized === false ? 0.35 : 0.9 }}
+        style={{ stroke: color, strokeWidth: selected ? 2.5 : 1.8, opacity: data?.emphasized === false ? 0.35 : 0.9 }}
       />
       <svg style={{ position: 'absolute', width: 0, height: 0 }}>
         <defs>

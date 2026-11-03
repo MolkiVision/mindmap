@@ -160,9 +160,9 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
       const n = byId[id]
       const lo = layout.get(id)
       let c: string
-      if (!n) c = 'var(--text-muted)'
+      if (!n) c = '#8b5cf6'
       else if (n.color) c = n.color
-      else if (!n.parentId) c = 'var(--text-muted)'
+      else if (!n.parentId) c = '#8b5cf6'
       else if (lo && lo.depth === 1) c = BRANCH_COLORS[lo.branch % BRANCH_COLORS.length]
       else c = colorOf(n.parentId)
       colorCache.set(id, c)

@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { BookOpen, Calendar, Download, HelpCircle, Map as MapIcon, Moon, Plus, Search, Sun, Trash2, Upload, Waypoints } from 'lucide-react'
+import { BookOpen, Calendar, Download, HelpCircle, Map as MapIcon, Moon, Plus, Search, Sun, Trash2, Upload } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { todayISO } from '../lib/ids'
 import { exportBackup } from '../lib/export'
@@ -31,7 +31,7 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
     <aside className="sidebar">
       <div className="brand">
         <span className="logo">
-          <Waypoints size={18} />
+          <MapIcon size={15} />
         </span>
         Mapa myšlienok
       </div>
