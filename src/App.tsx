@@ -70,6 +70,7 @@ export default function App() {
   return (
     <div className={`app ${showInspector ? 'inspector-open' : ''} ${sidebarOpen ? '' : 'sidebar-closed'}`}>
       {sidebarOpen && <Sidebar onHelp={() => setHelp(true)} />}
+      {sidebarOpen && <div className="drawer-backdrop" onClick={() => setSidebarOpen(false)} />}
       <main className="main">
         {!sidebarOpen && (
           <button className="icon-btn sidebar-reopen" title="Otvoriť ľavý panel (Ctrl+B)" onClick={() => setSidebarOpen(true)}>

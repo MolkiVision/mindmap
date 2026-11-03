@@ -324,7 +324,8 @@ export const useStore = create<AppState>()((set, get) => {
     const showRelations = (sett['showRelations']?.value as boolean | undefined) ?? true
     const defaultNodeSize = (sett['defaultNodeSize']?.value as NodeSize | undefined) ?? 'md'
     const nodeMaxWidth = (sett['nodeMaxWidth']?.value as number | undefined) ?? DEFAULT_MAX_TEXT_WIDTH
-    const sidebarOpen = (sett['sidebarOpen']?.value as boolean | undefined) ?? true
+    const narrow = typeof window !== 'undefined' && window.innerWidth < 1000
+    const sidebarOpen = narrow ? false : ((sett['sidebarOpen']?.value as boolean | undefined) ?? true)
     const ids = new Set(DEFAULT_RELATION_TYPES.map((t) => t.id))
     const relationTypes = [...DEFAULT_RELATION_TYPES, ...customTypes.filter((t) => !ids.has(t.id))]
     // earlier versions stored emoji as node icons
@@ -343,6 +344,7 @@ export const useStore = create<AppState>()((set, get) => {
       defaultNodeSize,
       nodeMaxWidth,
       sidebarOpen,
+      inspectorOpen: !narrow,
     })
     if (maps.length === 0) {
       const { seedDemo } = await import('./seed')

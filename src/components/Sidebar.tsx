@@ -45,6 +45,10 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
     }
   }
 
+  const closeIfNarrow = () => {
+    if (window.innerWidth < 1000) setSidebarOpen(false)
+  }
+
   const onImportMap = async (file: File) => {
     const text = await file.text()
     let id: string | null = null
@@ -114,7 +118,10 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
             className={`nav-item ${view.kind === 'map' && view.mapId === m.id ? 'active' : ''}`}
             role="button"
             tabIndex={0}
-            onClick={() => goToMap(m.id)}
+            onClick={() => {
+              goToMap(m.id)
+              closeIfNarrow()
+            }}
             onKeyDown={(e) => e.key === 'Enter' && goToMap(m.id)}
           >
             <MapIcon size={14} />
@@ -141,13 +148,22 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
         <div className="section-title">Zápisky</div>
         <button
           className={`nav-item ${view.kind === 'notes' ? 'active' : ''}`}
-          onClick={() => setView({ kind: 'notes', noteId: view.kind === 'notes' ? view.noteId : null })}
+          onClick={() => {
+            setView({ kind: 'notes', noteId: view.kind === 'notes' ? view.noteId : null })
+            closeIfNarrow()
+          }}
         >
           <BookOpen size={14} />
           <span className="label">Poznámky</span>
           <span className="count">{noteCount}</span>
         </button>
-        <button className={`nav-item ${view.kind === 'journal' ? 'active' : ''}`} onClick={() => setView({ kind: 'journal', date: todayISO() })}>
+        <button
+          className={`nav-item ${view.kind === 'journal' ? 'active' : ''}`}
+          onClick={() => {
+            setView({ kind: 'journal', date: todayISO() })
+            closeIfNarrow()
+          }}
+        >
           <Calendar size={14} />
           <span className="label">Denník</span>
           <span className="count">{journalCount}</span>

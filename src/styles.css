@@ -1774,13 +1774,125 @@ kbd {
   color: var(--text-faint);
 }
 
-@media (max-width: 900px) {
+/* ---------- touch ---------- */
+html {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+button,
+.nav-item,
+.note-row {
+  touch-action: manipulation;
+}
+.app {
+  height: 100dvh;
+}
+
+/* ---------- narrow screens (iPad portrait, phones): panels slide over the canvas ---------- */
+.drawer-backdrop {
+  display: none;
+}
+@media (max-width: 1000px) {
   .app,
-  .app.inspector-open {
+  .app.inspector-open,
+  .app.sidebar-closed,
+  .app.sidebar-closed.inspector-open {
     grid-template-columns: 1fr;
   }
   .sidebar,
   .inspector {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 40;
+    width: min(86vw, 340px);
+    box-shadow: var(--shadow);
+    animation: drawer-in 220ms var(--ease);
+  }
+  .sidebar {
+    left: 0;
+    border-right: 1px solid var(--border-strong);
+  }
+  .inspector {
+    right: 0;
+    border-left: 1px solid var(--border-strong);
+  }
+  @keyframes drawer-in {
+    from {
+      opacity: 0;
+      transform: translateX(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 39;
+    background: rgba(0, 0, 0, 0.3);
+  }
+  .sidebar-reopen {
+    display: inline-flex;
+  }
+  .map-title-bar {
+    left: 52px;
+    right: 12px;
+    top: 12px;
+  }
+  .map-title-bar input {
+    min-width: 0;
+    width: 100%;
+    max-width: 40vw;
+  }
+  .toolbar {
+    top: 60px;
+    left: 12px;
+    right: 12px;
+    max-width: calc(100% - 24px);
+    overflow-x: auto;
+    justify-content: flex-start;
+    scrollbar-width: none;
+  }
+  .toolbar::-webkit-scrollbar {
     display: none;
+  }
+  .hint {
+    display: none;
+  }
+  .react-flow__minimap {
+    display: none;
+  }
+  .notes-layout {
+    grid-template-columns: 1fr;
+  }
+  .notes-list {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 40vh;
+  }
+  .notes-list .top {
+    padding-left: 52px;
+  }
+  .note-editor .body {
+    padding: 24px 16px 48px;
+  }
+  .note-links {
+    grid-template-columns: 1fr;
+  }
+  .mind-node .collapse,
+  .mind-node .resize::after {
+    opacity: 1;
+  }
+  .mind-node .resize {
+    width: 16px;
+  }
+  .mind-node .resize.right {
+    right: -8px;
+  }
+  .mind-node .resize.left {
+    left: -8px;
   }
 }
