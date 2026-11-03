@@ -1382,6 +1382,28 @@ kbd {
   gap: 14px;
 }
 
+/* ---------- confirm dialog ---------- */
+.dialog {
+  width: min(420px, 92vw);
+  background: var(--bg-elev);
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 20px 22px;
+  align-self: flex-start;
+  margin-top: 10vh;
+}
+.dialog p {
+  margin: 0 0 16px;
+  font-size: 14.5px;
+  line-height: 1.5;
+}
+.dialog .actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* ---------- shortcuts help ---------- */
 .help {
   width: min(560px, 92vw);

@@ -7,6 +7,7 @@ import { NotesView } from './components/NotesView'
 import { JournalView } from './components/JournalView'
 import { CommandPalette } from './components/CommandPalette'
 import { HelpDialog } from './components/HelpDialog'
+import { Dialog } from './components/Dialog'
 
 export default function App() {
   const loaded = useStore((s) => s.loaded)
@@ -72,6 +73,7 @@ export default function App() {
       {showInspector && <Inspector mapId={view.mapId} />}
       {paletteOpen && <CommandPalette />}
       {help && <HelpDialog onClose={() => setHelp(false)} />}
+      <Dialog />
     </div>
   )
 }

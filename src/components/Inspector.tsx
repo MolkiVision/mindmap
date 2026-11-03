@@ -306,7 +306,7 @@ function MapInspector({ mapId }: { mapId: ID }) {
   const notes = useStore((s) => s.notes)
   const relationTypes = useStore((s) => s.relationTypes)
   const showRelations = useStore((s) => s.showRelations)
-  const { setShowRelations, setInspectorOpen, exportAll, deleteMap } = useStore()
+  const { setShowRelations, setInspectorOpen, exportAll, deleteMap, ask } = useStore()
   const stats = useMemo(() => {
     const ids = new Set(
       Object.values(nodes)
@@ -385,7 +385,7 @@ function MapInspector({ mapId }: { mapId: ID }) {
           <button
             className="btn small"
             style={{ color: 'var(--danger)' }}
-            onClick={() => confirm(`Naozaj zmazať mapu „${map.title}“ aj so všetkými uzlami?`) && deleteMap(map.id)}
+            onClick={async () => (await ask(`Naozaj zmazať mapu „${map.title}“ aj so všetkými uzlami?`)) && deleteMap(map.id)}
           >
             Zmazať mapu
           </button>

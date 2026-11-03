@@ -33,6 +33,10 @@ export interface AppState {
 
   undoStack: Snapshot[]
   redoStack: Snapshot[]
+  /** in-app replacement for window.confirm / alert (native dialogs are blocked in sandboxed hosts) */
+  dialog: { message: string; confirm: boolean; resolve: (ok: boolean) => void } | null
+  ask: (message: string) => Promise<boolean>
+  notify: (message: string) => Promise<void>
 
   // lifecycle
   load: () => Promise<void>
@@ -321,6 +325,33 @@ export const useStore = create<AppState>()((set, get) => {
     inspectorOpen: true,
     undoStack: [],
     redoStack: [],
+    dialog: null,
+    ask: (message) =>
+      new Promise<boolean>((resolve) => {
+        set({
+          dialog: {
+            message,
+            confirm: true,
+            resolve: (ok) => {
+              set({ dialog: null })
+              resolve(ok)
+            },
+          },
+        })
+      }),
+    notify: (message) =>
+      new Promise<void>((resolve) => {
+        set({
+          dialog: {
+            message,
+            confirm: false,
+            resolve: () => {
+              set({ dialog: null })
+              resolve()
+            },
+          },
+        })
+      }),
 
     load: () => {
       if (!loadPromise) loadPromise = doLoad().finally(() => (loadPromise = null))
@@ -501,7 +532,16 @@ export const useStore = create<AppState>()((set, get) => {
       set((s) => ({ nodes: { ...s.nodes, [id]: upd } }))
       persistNodes([upd])
       touchMap(n.mapId)
-      if (textChanged) resyncMentions()
+      if (textChanged) {
+        // renaming the root renames the map while the two still match
+        const m = get().maps[n.mapId]
+        if (m && m.rootId === id && m.title === n.text && upd.text) {
+          const mu = { ...m, title: upd.text, updatedAt: now() }
+          set((s) => ({ maps: { ...s.maps, [n.mapId]: mu } }))
+          void db.maps.put(mu)
+        }
+        resyncMentions()
+      }
     },
     deleteNode: (id) => {
       const n = get().nodes[id]

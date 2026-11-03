@@ -15,6 +15,7 @@ export const TreeEdge = memo(TreeEdgeImpl)
 
 function RelEdgeImpl({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data, selected }: EdgeProps<RelEdgeType>) {
   const removeLink = useStore((s) => s.removeLink)
+  const ask = useStore((s) => s.ask)
   // Relation edges leave from the node's outer side; add a little curvature so they arc over the tree.
   const [path, lx, ly] = getBezierPath({
     sourceX,
@@ -47,9 +48,9 @@ function RelEdgeImpl({ id, sourceX, sourceY, targetX, targetY, sourcePosition, t
           className={`rel-edge-label nodrag nopan ${data?.emphasized === false ? 'dim' : ''}`}
           style={{ left: lx, top: ly, '--rc': color } as React.CSSProperties}
           title="Kliknutím odstrániš vzťah"
-          onClick={(e) => {
+          onClick={async (e) => {
             e.stopPropagation()
-            if (data && confirm(`Odstrániť vzťah „${data.label}“?`)) removeLink(data.linkId)
+            if (data && (await ask(`Odstrániť vzťah „${data.label}“?`))) removeLink(data.linkId)
           }}
         >
           {data?.label}

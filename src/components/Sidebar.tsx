@@ -10,7 +10,7 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
   const notes = useStore((s) => s.notes)
   const view = useStore((s) => s.view)
   const theme = useStore((s) => s.theme)
-  const { goToMap, setView, createMap, deleteMap, setPaletteOpen, setTheme, exportAll, importAll } = useStore()
+  const { goToMap, setView, createMap, deleteMap, setPaletteOpen, setTheme, exportAll, importAll, ask, notify, setEditing } = useStore()
   const fileRef = useRef<HTMLInputElement>(null)
 
   const mapList = Object.values(maps).sort((a, b) => b.updatedAt - a.updatedAt)
@@ -21,9 +21,9 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
     try {
       const b = JSON.parse(await file.text()) as Backup
       if (!b.maps || !b.nodes) throw new Error('bad')
-      if (confirm('Import nahradí všetky súčasné dáta. Pokračovať?')) await importAll(b)
+      if (await ask('Import nahradí všetky súčasné dáta. Pokračovať?')) await importAll(b)
     } catch {
-      alert('Súbor sa nepodarilo načítať. Očakávam JSON zálohu z tejto aplikácie.')
+      await notify('Súbor sa nepodarilo načítať. Očakávam JSON zálohu z tejto aplikácie.')
     }
   }
 
@@ -43,9 +43,12 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
           Mapy
           <button
             title="Nová mapa"
-            onClick={() => {
-              const title = prompt('Názov novej mapy:', 'Nová mapa')
-              if (title !== null) goToMap(createMap(title.trim() || 'Nová mapa'))
+            onClick={(e) => {
+              e.currentTarget.blur()
+              const id = createMap('Nová mapa')
+              goToMap(id)
+              const root = useStore.getState().maps[id]?.rootId
+              if (root) setEditing(root)
             }}
           >
             <Plus size={14} />
@@ -66,9 +69,9 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
               className="icon-btn danger"
               style={{ width: 22, height: 22 }}
               title="Zmazať mapu"
-              onClick={(e) => {
+              onClick={async (e) => {
                 e.stopPropagation()
-                if (confirm(`Zmazať mapu „${m.title}“?`)) deleteMap(m.id)
+                if (await ask(`Zmazať mapu „${m.title}“ aj so všetkými uzlami?`)) deleteMap(m.id)
               }}
             >
               <Trash2 size={12} />

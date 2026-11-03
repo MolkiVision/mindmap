@@ -6,7 +6,7 @@ import { NoteEditor, noteExcerpt } from './NoteEditor'
 
 export function JournalView({ date }: { date: string }) {
   const notes = useStore((s) => s.notes)
-  const { openJournal, getOrCreateJournal, deleteNote } = useStore()
+  const { openJournal, getOrCreateJournal, deleteNote, ask } = useStore()
   const entry = useMemo(() => Object.values(notes).find((n) => n.kind === 'journal' && n.date === date), [notes, date])
   const entries = useMemo(
     () =>
@@ -52,8 +52,8 @@ export function JournalView({ date }: { date: string }) {
       {entry ? (
         <NoteEditor
           note={entry}
-          onDelete={() => {
-            if (confirm('Zmazať tento zápis v denníku?')) deleteNote(entry.id)
+          onDelete={async () => {
+            if (await ask('Zmazať tento zápis v denníku?')) deleteNote(entry.id)
           }}
         />
       ) : (

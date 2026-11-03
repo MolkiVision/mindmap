@@ -6,7 +6,7 @@ import type { ID } from '../lib/types'
 
 export function NotesView({ noteId }: { noteId: ID | null }) {
   const notes = useStore((s) => s.notes)
-  const { openNote, createNote, deleteNote } = useStore()
+  const { openNote, createNote, deleteNote, ask } = useStore()
   const [q, setQ] = useState('')
   const list = useMemo(() => {
     const ql = q.trim().toLowerCase()
@@ -47,8 +47,8 @@ export function NotesView({ noteId }: { noteId: ID | null }) {
       {note ? (
         <NoteEditor
           note={note}
-          onDelete={() => {
-            if (confirm(`Zmazať poznámku „${note.title || 'bez názvu'}“?`)) deleteNote(note.id)
+          onDelete={async () => {
+            if (await ask(`Zmazať poznámku „${note.title || 'bez názvu'}“?`)) deleteNote(note.id)
           }}
         />
       ) : (
