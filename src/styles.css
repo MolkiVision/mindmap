@@ -693,8 +693,7 @@ kbd {
 .toolbar {
   position: absolute;
   top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 12px;
   display: flex;
   align-items: center;
   gap: 2px;
@@ -734,15 +733,17 @@ kbd {
 .hint {
   position: absolute;
   bottom: 16px;
-  left: 50%;
-  transform: translateX(-50%);
+  left: 64px;
+  right: 220px;
   font-size: 12px;
   line-height: 16px;
   color: var(--text-faint);
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 4px 16px;
   pointer-events: none;
   z-index: 5;
+  white-space: nowrap;
 }
 
 /* ---------- inspector ---------- */

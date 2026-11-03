@@ -650,8 +650,8 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
         <span>
           <kbd>Ctrl</kbd>+<kbd>K</kbd> hľadať
         </span>
-        <span>dvojklik na plátno = voľná bublina</span>
-        <span>ťahaj uzol na iný = presun</span>
+        <span>dvojklik na plátno: voľná bublina</span>
+        <span>ťahanie na uzol: presun</span>
       </div>
       <Lightbox />
     </div>
