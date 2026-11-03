@@ -33,6 +33,7 @@ vytvorí ukážková mapa s poznámkami a zápisom v denníku.
 - Šírka uzla ťahaním okraja, veľkosť textu S/M/L/XL, predvolené hodnoty pre mapu.
 - Zbalenie vetvy s počítadlom skrytých uzlov, mini-mapa, zoom, prispôsobenie zobrazenia.
 - Export PNG, Markdown osnova, OPML (ide načítať do XMind / Freeplane), JSON záloha všetkého.
+- Export jednej mapy aj s poznámkami a vzťahmi (`.map.json`) a import mapy zo súboru (JSON balík alebo Markdown osnova), ktorý mapu pridá a nič neprepíše.
 - Tmavý a svetlý režim.
 
 **Vzťahy**

@@ -3,7 +3,7 @@ import { db } from './db'
 import { newId, todayISO } from './ids'
 import { DEFAULT_RELATION_TYPES, EMOJI_TO_ICON, slugify } from './relations'
 import { extractWikiLinks, normalizeTitle } from './wiki'
-import type { Backup, EntityKind, EntityRef, ID, ImageRec, Link, MapNode, MindMap, NodeSize, Note, RelationType, View } from './types'
+import type { Backup, EntityKind, EntityRef, ID, ImageRec, Link, MapNode, MapPackage, MindMap, NodeSize, Note, RelationType, View } from './types'
 import { shrinkImage } from './images'
 import { DEFAULT_MAX_TEXT_WIDTH, MAX_NODE_WIDTH, MIN_NODE_WIDTH } from './layout'
 
@@ -103,6 +103,13 @@ export interface AppState {
   addLink: (from: EntityRef, to: EntityRef, type: string, label?: string) => ID | null
   removeLink: (id: ID) => void
   addRelationType: (forward: string, inverse: string | undefined, color: string, directed: boolean) => string
+
+  // single-map packages
+  exportMapPackage: (mapId: ID) => MapPackage
+  /** adds the package as a new map (plus its notes and links); returns the new map id */
+  importMapPackage: (pkg: MapPackage) => ID | null
+  /** adds a map from a markdown outline (- items indented by two spaces) */
+  importOutline: (title: string, items: { text: string; children: unknown[] }[]) => ID
 
   // backup
   exportAll: () => Backup
@@ -864,6 +871,125 @@ export const useStore = create<AppState>()((set, get) => {
       return id
     },
 
+    exportMapPackage: (mapId) => {
+      const s = get()
+      const map = s.maps[mapId]
+      const nodes = Object.values(s.nodes).filter((n) => n.mapId === mapId)
+      const ids = new Set(nodes.map((n) => n.id))
+      const links = Object.values(s.links).filter((l) => (l.fromKind === 'node' && ids.has(l.fromId)) || (l.toKind === 'node' && ids.has(l.toId)))
+      const noteIds = new Set<ID>()
+      for (const l of links) {
+        if (l.fromKind === 'note') noteIds.add(l.fromId)
+        if (l.toKind === 'note') noteIds.add(l.toId)
+      }
+      const notes = [...noteIds].map((id) => s.notes[id]).filter((n): n is Note => !!n && n.kind === 'note')
+      const noteSet = new Set(notes.map((n) => n.id))
+      const keep = (k: EntityKind, id: ID) => (k === 'node' ? ids.has(id) : noteSet.has(id))
+      return {
+        kind: 'mindmap-package',
+        version: 1,
+        map: { title: map.title },
+        nodes: nodes.map(({ id, parentId, text, color, icon, collapsed, order, x, y, size, width }) => ({
+          id,
+          parentId,
+          text,
+          color,
+          icon,
+          collapsed,
+          order,
+          x,
+          y,
+          size,
+          width,
+        })),
+        links: links
+          .filter((l) => !l.auto && keep(l.fromKind, l.fromId) && keep(l.toKind, l.toId))
+          .map(({ fromKind, fromId, toKind, toId, type, label }) => ({ fromKind, fromId, toKind, toId, type, label })),
+        notes: notes.map(({ id, title, body, tags }) => ({ id, title, body, tags })),
+        relationTypes: s.relationTypes.filter((t) => !t.builtin && links.some((l) => l.type === t.id)),
+      }
+    },
+    importMapPackage: (pkg) => {
+      if (!pkg || pkg.kind !== 'mindmap-package' || !Array.isArray(pkg.nodes) || !pkg.nodes.length) return null
+      const t = now()
+      const nodeMap = new Map<string, ID>()
+      const noteMap = new Map<string, ID>()
+      for (const n of pkg.nodes) nodeMap.set(n.id, newId())
+      for (const n of pkg.notes ?? []) noteMap.set(n.id, newId())
+      const rootSrc = pkg.nodes.find((n) => n.parentId === null) ?? pkg.nodes[0]
+      const mapId = newId()
+      const rootId = nodeMap.get(rootSrc.id)!
+      const map: MindMap = { id: mapId, title: pkg.map?.title || rootSrc.text || 'Importovaná mapa', rootId, createdAt: t, updatedAt: t }
+      const nodes: MapNode[] = pkg.nodes.map((n) => ({
+        id: nodeMap.get(n.id)!,
+        mapId,
+        parentId: n.parentId && nodeMap.has(n.parentId) ? nodeMap.get(n.parentId)! : n.id === rootSrc.id ? null : n.parentId === null ? null : rootId,
+        text: n.text ?? '',
+        color: n.color ?? null,
+        icon: n.icon ?? null,
+        collapsed: !!n.collapsed,
+        order: n.order ?? 0,
+        x: n.x ?? null,
+        y: n.y ?? null,
+        size: n.size ?? null,
+        width: n.width ?? null,
+        createdAt: t,
+        updatedAt: t,
+      }))
+      const notes: Note[] = (pkg.notes ?? []).map((n) => ({
+        id: noteMap.get(n.id)!,
+        kind: 'note',
+        title: n.title ?? '',
+        body: n.body ?? '',
+        tags: n.tags ?? [],
+        createdAt: t,
+        updatedAt: t,
+      }))
+      const remap = (k: EntityKind, id: string) => (k === 'node' ? nodeMap.get(id) : noteMap.get(id))
+      const links: Link[] = []
+      for (const l of pkg.links ?? []) {
+        const from = remap(l.fromKind, l.fromId)
+        const to = remap(l.toKind, l.toId)
+        if (!from || !to) continue
+        links.push({ id: newId(), fromKind: l.fromKind, fromId: from, toKind: l.toKind, toId: to, type: l.type, label: l.label, createdAt: t })
+      }
+      const known = new Set(get().relationTypes.map((r) => r.id))
+      const newTypes = (pkg.relationTypes ?? []).filter((r) => r && r.id && !known.has(r.id)).map((r) => ({ ...r, builtin: false }))
+      if (newTypes.length) {
+        const relationTypes = [...get().relationTypes, ...newTypes]
+        set({ relationTypes })
+        void db.settings.put({ key: 'relationTypes', value: relationTypes.filter((r) => !r.builtin) })
+      }
+      set((s) => ({
+        maps: { ...s.maps, [mapId]: map },
+        nodes: { ...s.nodes, ...Object.fromEntries(nodes.map((n) => [n.id, n])) },
+        notes: { ...s.notes, ...Object.fromEntries(notes.map((n) => [n.id, n])) },
+        links: { ...s.links, ...Object.fromEntries(links.map((l) => [l.id, l])) },
+      }))
+      void db.maps.put(map)
+      persistNodes(nodes)
+      void db.notes.bulkPut(notes)
+      persistLinks(links)
+      for (const n of notes) syncAutoLinks(n.id)
+      return mapId
+    },
+    importOutline: (title, items) => {
+      const mapId = get().createMap(title || 'Importovaná mapa')
+      const rootId = get().maps[mapId].rootId
+      const t = now()
+      const out: MapNode[] = []
+      const walk = (parentId: ID, list: { text: string; children: unknown[] }[]) => {
+        list.forEach((it, i) => {
+          const n: MapNode = { id: newId(), mapId, parentId, text: it.text, color: null, icon: null, collapsed: false, order: i, createdAt: t, updatedAt: t }
+          out.push(n)
+          walk(n.id, it.children as { text: string; children: unknown[] }[])
+        })
+      }
+      walk(rootId, items)
+      set((s) => ({ nodes: { ...s.nodes, ...Object.fromEntries(out.map((n) => [n.id, n])) } }))
+      persistNodes(out)
+      return mapId
+    },
     exportAll: () => {
       const s = get()
       return {

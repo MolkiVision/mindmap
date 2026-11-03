@@ -7,7 +7,7 @@ import { BRANCH_COLORS, DEPENDENCY_TYPES, NODE_ICONS } from '../lib/relations'
 import { DEFAULT_MAX_TEXT_WIDTH, MAX_NODE_WIDTH, MIN_NODE_WIDTH } from '../lib/layout'
 import type { NodeSize } from '../lib/types'
 import { formatDateShort } from '../lib/ids'
-import { exportBackup } from '../lib/export'
+import { download, exportBackup, safeName } from '../lib/export'
 import type { EntityRef, ID, Link, Note } from '../lib/types'
 
 const SIZES: { id: NodeSize; label: string }[] = [
@@ -411,7 +411,7 @@ function MapInspector({ mapId }: { mapId: ID }) {
   const notes = useStore((s) => s.notes)
   const relationTypes = useStore((s) => s.relationTypes)
   const showRelations = useStore((s) => s.showRelations)
-  const { setShowRelations, setInspectorOpen, exportAll, deleteMap, ask, setDefaultNodeSize, setNodeMaxWidth } = useStore()
+  const { setShowRelations, setInspectorOpen, exportAll, exportMapPackage, deleteMap, ask, setDefaultNodeSize, setNodeMaxWidth } = useStore()
   const defaultNodeSize = useStore((s) => s.defaultNodeSize)
   const nodeMaxWidth = useStore((s) => s.nodeMaxWidth)
   const stats = useMemo(() => {
@@ -511,6 +511,13 @@ function MapInspector({ mapId }: { mapId: ID }) {
       <div className="section">
         <h4>Správa</h4>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button
+            className="btn small"
+            title="Táto mapa aj s poznámkami a vzťahmi, dá sa importovať v inom prehliadači"
+            onClick={() => download(`${safeName(map.title)}.map.json`, JSON.stringify(exportMapPackage(map.id), null, 2), 'application/json')}
+          >
+            Exportovať mapu (JSON)
+          </button>
           <button className="btn small" onClick={() => exportBackup(exportAll())}>
             Zálohovať všetko (JSON)
           </button>

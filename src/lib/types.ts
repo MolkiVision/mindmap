@@ -102,3 +102,14 @@ export interface Backup {
   relationTypes: RelationType[]
   images?: ImageRec[]
 }
+
+/** one map with its notes and links, portable between browsers (ids are remapped on import) */
+export interface MapPackage {
+  kind: 'mindmap-package'
+  version: 1
+  map: { title: string }
+  nodes: Array<Pick<MapNode, 'id' | 'parentId' | 'text' | 'color' | 'icon' | 'collapsed' | 'order'> & Partial<Pick<MapNode, 'x' | 'y' | 'size' | 'width'>>>
+  links: Array<Pick<Link, 'fromKind' | 'fromId' | 'toKind' | 'toId' | 'type' | 'label'>>
+  notes: Array<Pick<Note, 'id' | 'title' | 'body' | 'tags'>>
+  relationTypes?: RelationType[]
+}

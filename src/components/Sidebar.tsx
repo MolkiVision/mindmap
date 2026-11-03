@@ -1,5 +1,7 @@
 import { useRef } from 'react'
-import { BookOpen, Calendar, Download, HelpCircle, Map as MapIcon, Moon, Plus, Search, Sun, Trash2, Upload } from 'lucide-react'
+import { BookOpen, Calendar, Download, FileInput, HelpCircle, Map as MapIcon, Moon, Plus, Search, Sun, Trash2, Upload } from 'lucide-react'
+import { parseOutline } from '../lib/export'
+import type { MapPackage } from '../lib/types'
 import { useStore } from '../lib/store'
 import { todayISO } from '../lib/ids'
 import { exportBackup } from '../lib/export'
@@ -10,7 +12,9 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
   const notes = useStore((s) => s.notes)
   const view = useStore((s) => s.view)
   const theme = useStore((s) => s.theme)
-  const { goToMap, setView, createMap, deleteMap, setPaletteOpen, setTheme, exportAll, importAll, ask, notify, setEditing } = useStore()
+  const { goToMap, setView, createMap, deleteMap, setPaletteOpen, setTheme, exportAll, importAll, importMapPackage, importOutline, ask, notify, setEditing } =
+    useStore()
+  const mapFileRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const mapList = Object.values(maps).sort((a, b) => b.updatedAt - a.updatedAt)
@@ -27,6 +31,23 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
     }
   }
 
+  const onImportMap = async (file: File) => {
+    const text = await file.text()
+    let id: string | null = null
+    if (file.name.endsWith('.json')) {
+      try {
+        id = importMapPackage(JSON.parse(text) as MapPackage)
+      } catch {
+        id = null
+      }
+    } else {
+      const o = parseOutline(text)
+      if (o.items.length) id = importOutline(o.title || file.name.replace(/\.[^.]+$/, ''), o.items)
+    }
+    if (id) goToMap(id)
+    else await notify('Súbor sa nepodarilo načítať. Očakávam mapu vo formáte JSON z tejto aplikácie alebo Markdown osnovu.')
+  }
+
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -41,18 +62,34 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
       <div className="scroll">
         <div className="section-title">
           Mapy
-          <button
-            title="Nová mapa"
-            onClick={(e) => {
-              e.currentTarget.blur()
-              const id = createMap('Nová mapa')
-              goToMap(id)
-              const root = useStore.getState().maps[id]?.rootId
-              if (root) setEditing(root)
-            }}
-          >
-            <Plus size={14} />
-          </button>
+          <span style={{ display: 'flex', gap: 2 }}>
+            <button title="Importovať mapu (JSON alebo Markdown osnova)" onClick={() => mapFileRef.current?.click()}>
+              <FileInput size={14} />
+            </button>
+            <input
+              ref={mapFileRef}
+              type="file"
+              accept=".json,.md,.markdown,.txt,application/json,text/markdown"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) void onImportMap(f)
+                e.target.value = ''
+              }}
+            />
+            <button
+              title="Nová mapa"
+              onClick={(e) => {
+                e.currentTarget.blur()
+                const id = createMap('Nová mapa')
+                goToMap(id)
+                const root = useStore.getState().maps[id]?.rootId
+                if (root) setEditing(root)
+              }}
+            >
+              <Plus size={14} />
+            </button>
+          </span>
         </div>
         {mapList.map((m) => (
           <div
