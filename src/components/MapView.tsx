@@ -194,6 +194,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
       }
     }
 
+    const focusMode = relatedColor.size > 0 && !!selectedNodeId
     const nodes: MindNodeType[] = []
     const edges: Edge[] = []
     for (const lo of layout.values()) {
@@ -226,6 +227,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
           editing: editingNodeId === lo.id,
           dropTarget: dropTargetId === lo.id,
           relatedColor: relatedColor.get(lo.id) ?? null,
+          dimmed: focusMode && lo.id !== selectedNodeId && !relatedColor.has(lo.id),
         },
       })
       if (n.parentId && layout.has(n.parentId)) {
@@ -237,7 +239,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
           target: lo.id,
           sourceHandle: right ? 'sr' : 'sl',
           targetHandle: right ? 'tl' : 'tr',
-          data: { color: colorOf(lo.id), depth: lo.depth },
+          data: { color: colorOf(lo.id), depth: lo.depth, dimmed: focusMode },
           selectable: false,
           focusable: false,
         })
@@ -264,6 +266,8 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
             linkId: l.id,
             directed: rt?.directed ?? true,
             emphasized: !selectedNodeId || l.fromId === selectedNodeId || l.toId === selectedNodeId,
+            active: !!selectedNodeId && (l.fromId === selectedNodeId || l.toId === selectedNodeId),
+            reversed: l.toId === selectedNodeId,
           },
           interactionWidth: 8,
         })

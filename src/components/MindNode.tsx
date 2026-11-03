@@ -25,6 +25,8 @@ export type MindNodeData = {
   editing: boolean
   dropTarget: boolean
   relatedColor: string | null
+  /** another node is selected and this one is not related to it */
+  dimmed: boolean
 }
 
 export type MindNodeType = Node<MindNodeData, 'mind'>
@@ -171,6 +173,7 @@ function MindNodeImpl({ id, data, selected }: NodeProps<MindNodeType>) {
     data.hasChildren ? 'has-children' : '',
     data.side === 'left' ? 'side-left' : '',
     data.floating ? 'floating' : '',
+    data.dimmed ? 'dimmed' : '',
   ]
     .filter(Boolean)
     .join(' ')

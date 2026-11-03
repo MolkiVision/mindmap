@@ -434,7 +434,8 @@ kbd {
   min-height: 36px;
   transition:
     border-color 150ms var(--ease),
-    box-shadow 150ms var(--ease);
+    box-shadow 150ms var(--ease),
+    opacity 200ms var(--ease);
 }
 .mind-node::before {
   content: '';
@@ -647,6 +648,43 @@ kbd {
 /* relation: a thread between two pins with a paper tag */
 .rel-edge {
   stroke-dasharray: 4 4;
+}
+/* the thread flows from source to target while one of its ends is selected */
+.rel-edge.active {
+  stroke-dasharray: 7 5;
+  animation: thread-flow 0.9s linear infinite;
+}
+.rel-edge.active.reversed {
+  animation-direction: reverse;
+}
+@keyframes thread-flow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+.mind-node.dimmed {
+  opacity: 0.4;
+  filter: saturate(0.6);
+}
+.mind-node.related {
+  animation: related-pulse 1.4s ease-in-out infinite;
+}
+@keyframes related-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--rc, var(--c)) 70%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 5px color-mix(in srgb, var(--rc, var(--c)) 45%, transparent),
+      0 0 24px -4px var(--rc, var(--c));
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rel-edge.active,
+  .mind-node.related {
+    animation: none;
+  }
 }
 .rel-edge-label {
   position: absolute;

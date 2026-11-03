@@ -2,14 +2,17 @@ import { memo } from 'react'
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, Position, type Edge, type EdgeProps } from '@xyflow/react'
 import { useStore } from '../lib/store'
 
-export type TreeEdgeType = Edge<{ color: string; depth: number }, 'tree'>
-export type RelEdgeType = Edge<{ color: string; label: string; linkId: string; directed: boolean; emphasized: boolean }, 'rel'>
+export type TreeEdgeType = Edge<{ color: string; depth: number; dimmed?: boolean }, 'tree'>
+export type RelEdgeType = Edge<
+  { color: string; label: string; linkId: string; directed: boolean; emphasized: boolean; active?: boolean; reversed?: boolean },
+  'rel'
+>
 
 function TreeEdgeImpl({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }: EdgeProps<TreeEdgeType>) {
   const [path] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, curvature: 0.35 })
   const depth = data?.depth ?? 1
   const width = Math.max(1.5, 4 - depth * 0.8)
-  return <BaseEdge path={path} style={{ stroke: data?.color, strokeWidth: width, opacity: 0.85 }} />
+  return <BaseEdge path={path} style={{ stroke: data?.color, strokeWidth: width, opacity: data?.dimmed ? 0.25 : 0.85 }} />
 }
 export const TreeEdge = memo(TreeEdgeImpl)
 
@@ -32,9 +35,9 @@ function RelEdgeImpl({ id, sourceX, sourceY, targetX, targetY, sourcePosition, t
       <BaseEdge
         id={id}
         path={path}
-        className="rel-edge"
+        className={`rel-edge ${data?.active ? (data?.reversed ? 'active reversed' : 'active') : ''}`}
         markerEnd={data?.directed ? `url(#arrow-${id})` : undefined}
-        style={{ stroke: color, strokeWidth: selected ? 2.5 : 1.8, opacity: data?.emphasized === false ? 0.35 : 0.9 }}
+        style={{ stroke: color, strokeWidth: data?.active ? 2.6 : selected ? 2.5 : 1.8, opacity: data?.emphasized === false ? 0.3 : 0.95 }}
       />
       <svg style={{ position: 'absolute', width: 0, height: 0 }}>
         <defs>
