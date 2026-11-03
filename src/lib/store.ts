@@ -3,7 +3,8 @@ import { db } from './db'
 import { newId, todayISO } from './ids'
 import { DEFAULT_RELATION_TYPES, slugify } from './relations'
 import { extractWikiLinks, normalizeTitle } from './wiki'
-import type { Backup, EntityKind, EntityRef, ID, Link, MapNode, MindMap, Note, RelationType, View } from './types'
+import type { Backup, EntityKind, EntityRef, ID, Link, MapNode, MindMap, NodeSize, Note, RelationType, View } from './types'
+import { DEFAULT_MAX_TEXT_WIDTH, MAX_NODE_WIDTH, MIN_NODE_WIDTH } from './layout'
 
 interface Snapshot {
   mapId: ID
@@ -30,6 +31,14 @@ export interface AppState {
   paletteOpen: boolean
   theme: 'dark' | 'light'
   inspectorOpen: boolean
+  /** default text size for nodes without their own */
+  defaultNodeSize: NodeSize
+  /** wrap width for node text without a fixed width */
+  nodeMaxWidth: number
+  setDefaultNodeSize: (s: NodeSize) => void
+  setNodeMaxWidth: (w: number) => void
+  /** live width change while dragging the resize handle (no undo entry) */
+  setNodeWidth: (id: ID, width: number | null) => void
 
   undoStack: Snapshot[]
   redoStack: Snapshot[]
@@ -62,7 +71,7 @@ export interface AppState {
   // nodes
   addChild: (parentId: ID, text?: string) => ID
   addSibling: (nodeId: ID, text?: string) => ID
-  updateNode: (id: ID, patch: Partial<Pick<MapNode, 'text' | 'color' | 'icon' | 'collapsed'>>) => void
+  updateNode: (id: ID, patch: Partial<Pick<MapNode, 'text' | 'color' | 'icon' | 'collapsed' | 'width' | 'size'>>) => void
   deleteNode: (id: ID) => void
   moveNode: (id: ID, newParentId: ID, index?: number) => void
   reorderNode: (id: ID, delta: number) => void
@@ -323,6 +332,25 @@ export const useStore = create<AppState>()((set, get) => {
     paletteOpen: false,
     theme: 'dark',
     inspectorOpen: true,
+    defaultNodeSize: 'md',
+    nodeMaxWidth: DEFAULT_MAX_TEXT_WIDTH,
+    setDefaultNodeSize: (size) => {
+      set({ defaultNodeSize: size })
+      void db.settings.put({ key: 'defaultNodeSize', value: size })
+    },
+    setNodeMaxWidth: (w) => {
+      set({ nodeMaxWidth: w })
+      void db.settings.put({ key: 'nodeMaxWidth', value: w })
+    },
+    setNodeWidth: (id, width) => {
+      const n = get().nodes[id]
+      if (!n) return
+      const w = width === null ? null : Math.round(Math.max(MIN_NODE_WIDTH, Math.min(MAX_NODE_WIDTH, width)))
+      if (w === (n.width ?? null)) return
+      const upd = { ...n, width: w, updatedAt: now() }
+      set((s) => ({ nodes: { ...s.nodes, [id]: upd } }))
+      persistNodes([upd])
+    },
     undoStack: [],
     redoStack: [],
     dialog: null,
@@ -527,7 +555,7 @@ export const useStore = create<AppState>()((set, get) => {
       const n = get().nodes[id]
       if (!n) return
       const textChanged = patch.text !== undefined && patch.text !== n.text
-      if (textChanged || patch.color !== undefined || patch.icon !== undefined) pushUndo(n.mapId)
+      if (textChanged || patch.color !== undefined || patch.icon !== undefined || patch.size !== undefined || patch.width !== undefined) pushUndo(n.mapId)
       const upd = { ...n, ...patch, updatedAt: now() }
       set((s) => ({ nodes: { ...s.nodes, [id]: upd } }))
       persistNodes([upd])

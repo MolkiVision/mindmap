@@ -32,7 +32,7 @@ import {
   Undo2,
 } from 'lucide-react'
 import { childrenOf, subtreeIds, useStore } from '../lib/store'
-import { clearMeasureCache, layoutMindMap, measureNode, type LaidOutNode } from '../lib/layout'
+import { clearMeasureCache, fontFor, layoutMindMap, measureNode, type LaidOutNode } from '../lib/layout'
 import { BRANCH_COLORS, ROOT_COLOR } from '../lib/relations'
 import { download, mapToMarkdown, mapToOPML, safeName } from '../lib/export'
 import type { ID, MapNode } from '../lib/types'
@@ -68,6 +68,8 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
   const paletteOpen = useStore((s) => s.paletteOpen)
   const inspectorOpen = useStore((s) => s.inspectorOpen)
   const undoStack = useStore((s) => s.undoStack)
+  const defaultNodeSize = useStore((s) => s.defaultNodeSize)
+  const nodeMaxWidth = useStore((s) => s.nodeMaxWidth)
   const redoStack = useStore((s) => s.redoStack)
   const {
     selectNode,
@@ -135,10 +137,19 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
       }
     }
 
+    const sizeOfNode = (n: MapNode, isRoot: boolean) => n.size ?? (isRoot ? (defaultNodeSize === 'md' ? 'lg' : defaultNodeSize) : defaultNodeSize)
     const layout = layoutMindMap({
       nodes: mapNodes,
       rootId: map.rootId,
-      sizeOf: (n, isRoot) => measureNode(n.text, isRoot, (notesCount[n.id] ?? 0) + (relCount[n.id] ?? 0) > 0, !!n.icon),
+      sizeOf: (n, isRoot) =>
+        measureNode(n.text, {
+          isRoot,
+          hasBadges: (notesCount[n.id] ?? 0) + (relCount[n.id] ?? 0) > 0,
+          hasIcon: !!n.icon,
+          size: sizeOfNode(n, isRoot),
+          maxTextWidth: nodeMaxWidth,
+          fixedWidth: n.width ?? null,
+        }),
     })
 
     // colour: explicit colour on the nearest ancestor, else branch palette
@@ -172,6 +183,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
     const edges: Edge[] = []
     for (const lo of layout.values()) {
       const n = byId[lo.id]
+      const f = fontFor({ isRoot: lo.depth === 0, size: sizeOfNode(n, lo.depth === 0) })
       nodes.push({
         id: lo.id,
         type: 'mind',
@@ -189,6 +201,9 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
           notesCount: notesCount[lo.id] ?? 0,
           relCount: relCount[lo.id] ?? 0,
           width: lo.width,
+          fixedWidth: n.width ?? null,
+          fontPx: f.font,
+          lineH: f.line,
           editing: editingNodeId === lo.id,
           dropTarget: dropTargetId === lo.id,
           relatedColor: relatedColor.get(lo.id) ?? null,
@@ -237,7 +252,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
     }
     return { nodes, edges, layout }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, mapNodes, links, notes, relationTypes, selectedNodeId, editingNodeId, showRelations, dropTargetId, fontEpoch])
+  }, [map, mapNodes, links, notes, relationTypes, selectedNodeId, editingNodeId, showRelations, dropTargetId, fontEpoch, defaultNodeSize, nodeMaxWidth])
 
   const [rfNodes, setRfNodes] = useState<MindNodeType[]>(computed.nodes)
   useEffect(() => setRfNodes(computed.nodes), [computed.nodes])

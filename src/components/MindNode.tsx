@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState } from 'react'
-import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
+import { Handle, Position, useReactFlow, type Node, type NodeProps } from '@xyflow/react'
 import { FileText, Link2 } from 'lucide-react'
 import { useStore } from '../lib/store'
 import type { Side } from '../lib/layout'
@@ -16,6 +16,9 @@ export type MindNodeData = {
   notesCount: number
   relCount: number
   width: number
+  fixedWidth: number | null
+  fontPx: number
+  lineH: number
   editing: boolean
   dropTarget: boolean
   relatedColor: string | null
@@ -119,6 +122,41 @@ function Editor({ id, text, isRoot }: { id: string; text: string; isRoot: boolea
   )
 }
 
+function ResizeHandle({ id, side, width }: { id: string; side: 'left' | 'right'; width: number }) {
+  const setNodeWidth = useStore((s) => s.setNodeWidth)
+  const updateNode = useStore((s) => s.updateNode)
+  const rf = useReactFlow()
+  const drag = useRef<{ x: number; w: number; moved: boolean } | null>(null)
+  return (
+    <div
+      className={`resize nodrag nopan ${side}`}
+      title="Ťahaj: šírka uzla · dvojklik: automaticky"
+      onPointerDown={(e) => {
+        e.stopPropagation()
+        e.preventDefault()
+        drag.current = { x: e.clientX, w: width, moved: false }
+        e.currentTarget.setPointerCapture(e.pointerId)
+      }}
+      onPointerMove={(e) => {
+        if (!drag.current) return
+        const dx = (e.clientX - drag.current.x) / rf.getZoom()
+        drag.current.moved = true
+        setNodeWidth(id, drag.current.w + (side === 'right' ? dx : -dx))
+      }}
+      onPointerUp={(e) => {
+        if (!drag.current) return
+        e.currentTarget.releasePointerCapture(e.pointerId)
+        drag.current = null
+      }}
+      onDoubleClick={(e) => {
+        e.stopPropagation()
+        updateNode(id, { width: null })
+      }}
+      onClick={(e) => e.stopPropagation()}
+    />
+  )
+}
+
 function MindNodeImpl({ id, data, selected }: NodeProps<MindNodeType>) {
   const toggleCollapse = useStore((s) => s.toggleCollapse)
   const cls = ['mind-node', data.isRoot ? 'root' : '', data.dropTarget ? 'drop-target' : '', data.relatedColor && !selected ? 'related' : '']
@@ -127,6 +165,8 @@ function MindNodeImpl({ id, data, selected }: NodeProps<MindNodeType>) {
   const style = {
     '--c': data.color,
     '--rc': data.relatedColor ?? data.color,
+    '--fs': `${data.fontPx}px`,
+    '--lh': `${data.lineH}px`,
     width: data.width,
   } as React.CSSProperties
   const showBadges = data.notesCount > 0 || data.relCount > 0
@@ -155,6 +195,7 @@ function MindNodeImpl({ id, data, selected }: NodeProps<MindNodeType>) {
           )}
         </div>
       )}
+      {!data.editing && <ResizeHandle id={id} side={collapseSide} width={data.width} />}
       {data.hasChildren && (
         <button
           className={`collapse nodrag ${collapseSide} ${data.collapsed ? 'collapsed' : ''}`}

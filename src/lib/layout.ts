@@ -1,4 +1,4 @@
-import type { ID, MapNode } from './types'
+import type { ID, MapNode, NodeSize } from './types'
 
 export type Side = 'left' | 'right' | 'root'
 
@@ -25,11 +25,34 @@ export interface Size {
 
 const H_GAP = 56 // horizontal distance between parent and child
 const V_GAP = 14 // vertical distance between siblings
-const MAX_TEXT_WIDTH = 240
+export const DEFAULT_MAX_TEXT_WIDTH = 240
+export const MIN_NODE_WIDTH = 96
+export const MAX_NODE_WIDTH = 720
 const PAD_X = 36 // padding 2×14 + border 2×1.5 + safety
 const PAD_Y = 20
-const LINE_H = 20
-const ROOT_LINE_H = 24
+
+export const SIZE_PRESETS: Record<NodeSize, { font: number; line: number }> = {
+  sm: { font: 12, line: 16 },
+  md: { font: 14, line: 20 },
+  lg: { font: 17, line: 24 },
+  xl: { font: 22, line: 30 },
+}
+
+export interface MeasureOpts {
+  isRoot: boolean
+  hasBadges: boolean
+  hasIcon: boolean
+  size: NodeSize
+  /** wrap width for the text when the node has no fixed width */
+  maxTextWidth: number
+  /** fixed node width set by the user */
+  fixedWidth: number | null
+}
+
+export function fontFor(o: Pick<MeasureOpts, 'isRoot' | 'size'>) {
+  const { font, line } = SIZE_PRESETS[o.size]
+  return { font, line, weight: o.isRoot ? 700 : 500 }
+}
 
 let ctx: CanvasRenderingContext2D | null = null
 function getCtx() {
@@ -48,31 +71,33 @@ export function clearMeasureCache() {
 }
 
 /** Estimate the rendered size of a node for the given text (word-wrapped). */
-export function measureNode(text: string, isRoot: boolean, hasBadges: boolean, hasIcon: boolean): Size {
-  const key = `${isRoot ? 'R' : 'N'}|${hasBadges ? 'B' : '-'}|${hasIcon ? 'I' : '-'}|${text}`
+export function measureNode(text: string, o: MeasureOpts): Size {
+  const key = `${o.isRoot ? 'R' : 'N'}|${o.hasBadges ? 'B' : '-'}|${o.hasIcon ? 'I' : '-'}|${o.size}|${o.maxTextWidth}|${o.fixedWidth ?? 'a'}|${text}`
   const cached = measureCache.get(key)
   if (cached) return cached
   const c = getCtx()
-  const font = isRoot ? '700 17px Inter, system-ui, sans-serif' : '500 14px Inter, system-ui, sans-serif'
-  if (c) c.font = font
-  const measure = (s: string) => (c ? c.measureText(s).width : s.length * 7.5)
-  const lineH = isRoot ? ROOT_LINE_H : LINE_H
-  const words = (text || 'Nový uzol').split(/\s+/)
+  const { font, line: lineH, weight } = fontFor(o)
+  if (c) c.font = `${weight} ${font}px Inter, system-ui, sans-serif`
+  const measure = (s: string) => (c ? c.measureText(s).width : s.length * font * 0.55)
+  const iconW = o.hasIcon ? Math.round(font * 2.1) : 0
+  const wrapAt = o.fixedWidth ? Math.max(24, o.fixedWidth - PAD_X - iconW) : o.maxTextWidth
   const lines: string[] = []
-  let cur = ''
-  for (const w of words) {
-    const test = cur ? cur + ' ' + w : w
-    if (measure(test) > MAX_TEXT_WIDTH && cur) {
-      lines.push(cur)
-      cur = w
-    } else cur = test
+  for (const para of (text || 'Nový uzol').split('\n')) {
+    const words = para.split(/\s+/)
+    let cur = ''
+    for (const w of words) {
+      const test = cur ? cur + ' ' + w : w
+      if (measure(test) > wrapAt && cur) {
+        lines.push(cur)
+        cur = w
+      } else cur = test
+    }
+    lines.push(cur)
   }
-  lines.push(cur)
   let maxW = 0
-  for (const l of lines) maxW = Math.max(maxW, Math.min(MAX_TEXT_WIDTH, measure(l)))
-  const iconW = hasIcon ? 30 : 0
-  const w = Math.max(isRoot ? 120 : 64, Math.ceil(maxW + iconW + PAD_X))
-  const h = Math.ceil(lines.length * lineH + PAD_Y + (hasBadges ? 20 : 0))
+  for (const l of lines) maxW = Math.max(maxW, Math.min(wrapAt, measure(l)))
+  const w = o.fixedWidth ? o.fixedWidth : Math.max(o.isRoot ? 120 : 64, Math.ceil(maxW + iconW + PAD_X))
+  const h = Math.ceil(lines.length * lineH + PAD_Y + (o.hasBadges ? 20 : 0))
   const size = { w, h }
   measureCache.set(key, size)
   return size

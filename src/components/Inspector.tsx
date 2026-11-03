@@ -2,9 +2,18 @@ import { useMemo, useState } from 'react'
 import { ArrowRight, BookOpen, Calendar, Circle, ExternalLink, PanelRightClose, Plus, X } from 'lucide-react'
 import { childrenOf, entityTitle, linksOf, useStore } from '../lib/store'
 import { BRANCH_COLORS, DEPENDENCY_TYPES, NODE_ICONS } from '../lib/relations'
+import { DEFAULT_MAX_TEXT_WIDTH, MAX_NODE_WIDTH, MIN_NODE_WIDTH } from '../lib/layout'
+import type { NodeSize } from '../lib/types'
 import { formatDateShort } from '../lib/ids'
 import { exportBackup } from '../lib/export'
 import type { EntityRef, ID, Link, Note } from '../lib/types'
+
+const SIZES: { id: NodeSize; label: string }[] = [
+  { id: 'sm', label: 'S' },
+  { id: 'md', label: 'M' },
+  { id: 'lg', label: 'L' },
+  { id: 'xl', label: 'XL' },
+]
 import { EntityPicker } from './EntityPicker'
 
 function EntityItem({ r, label, meta, onRemove }: { r: EntityRef; label: string; meta?: string; onRemove?: () => void }) {
@@ -78,7 +87,7 @@ function NodeInspector({ nodeId }: { nodeId: ID }) {
   const notes = useStore((s) => s.notes)
   const links = useStore((s) => s.links)
   const relationTypes = useStore((s) => s.relationTypes)
-  const { updateNode, selectNode, addLink, removeLink, createNote, openNote, goToEntity, setInspectorOpen } = useStore()
+  const { updateNode, setNodeWidth, selectNode, addLink, removeLink, createNote, openNote, goToEntity, setInspectorOpen } = useStore()
   const [picker, setPicker] = useState<null | 'relation' | 'note'>(null)
 
   const { outgoing, incoming } = useMemo(() => linksOf(links, { kind: 'node', id: nodeId }), [links, nodeId])
@@ -173,6 +182,33 @@ function NodeInspector({ nodeId }: { nodeId: ID }) {
               {ic || 'bez'}
             </button>
           ))}
+        </div>
+        <div className="size-row" style={{ marginTop: 10 }}>
+          <button className={!node.size ? 'active' : ''} title="Predvolená veľkosť mapy" onClick={() => updateNode(node.id, { size: null })}>
+            auto
+          </button>
+          {SIZES.map((sz) => (
+            <button key={sz.id} className={node.size === sz.id ? 'active' : ''} onClick={() => updateNode(node.id, { size: sz.id })}>
+              {sz.label}
+            </button>
+          ))}
+        </div>
+        <div className="range-row" style={{ marginTop: 10 }}>
+          <span>Šírka</span>
+          <input
+            type="range"
+            min={MIN_NODE_WIDTH}
+            max={MAX_NODE_WIDTH}
+            step={4}
+            value={node.width ?? MIN_NODE_WIDTH}
+            onChange={(e) => setNodeWidth(node.id, Number(e.target.value))}
+          />
+          <span className="val">{node.width ? `${node.width}px` : 'auto'}</span>
+          {node.width && (
+            <button className="btn small ghost" onClick={() => updateNode(node.id, { width: null })}>
+              auto
+            </button>
+          )}
         </div>
       </div>
 
@@ -306,7 +342,9 @@ function MapInspector({ mapId }: { mapId: ID }) {
   const notes = useStore((s) => s.notes)
   const relationTypes = useStore((s) => s.relationTypes)
   const showRelations = useStore((s) => s.showRelations)
-  const { setShowRelations, setInspectorOpen, exportAll, deleteMap, ask } = useStore()
+  const { setShowRelations, setInspectorOpen, exportAll, deleteMap, ask, setDefaultNodeSize, setNodeMaxWidth } = useStore()
+  const defaultNodeSize = useStore((s) => s.defaultNodeSize)
+  const nodeMaxWidth = useStore((s) => s.nodeMaxWidth)
   const stats = useMemo(() => {
     const ids = new Set(
       Object.values(nodes)
@@ -354,6 +392,29 @@ function MapInspector({ mapId }: { mapId: ID }) {
             <b>{new Date(map.updatedAt).toLocaleDateString('sk-SK')}</b>
             <span>posledná zmena</span>
           </div>
+        </div>
+      </div>
+      <div className="section">
+        <h4>Uzly</h4>
+        <div className="size-row">
+          {SIZES.map((sz) => (
+            <button key={sz.id} className={defaultNodeSize === sz.id ? 'active' : ''} onClick={() => setDefaultNodeSize(sz.id)}>
+              {sz.label}
+            </button>
+          ))}
+        </div>
+        <div className="range-row" style={{ marginTop: 10 }}>
+          <span>Zalamovať od</span>
+          <input type="range" min={120} max={600} step={10} value={nodeMaxWidth} onChange={(e) => setNodeMaxWidth(Number(e.target.value))} />
+          <span className="val">{nodeMaxWidth}px</span>
+          {nodeMaxWidth !== DEFAULT_MAX_TEXT_WIDTH && (
+            <button className="btn small ghost" onClick={() => setNodeMaxWidth(DEFAULT_MAX_TEXT_WIDTH)}>
+              reset
+            </button>
+          )}
+        </div>
+        <div className="empty" style={{ marginTop: 6 }}>
+          Veľkosť textu a šírka zalamovania pre uzly bez vlastného nastavenia. Šírku jedného uzla zmeníš ťahaním jeho okraja.
         </div>
       </div>
       <div className="section">

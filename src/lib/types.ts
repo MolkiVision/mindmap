@@ -17,9 +17,15 @@ export interface MapNode {
   icon: string | null
   collapsed: boolean
   order: number
+  /** fixed width in px set by the user; null = automatic */
+  width?: number | null
+  /** text size preset; null = map default */
+  size?: NodeSize | null
   createdAt: number
   updatedAt: number
 }
+
+export type NodeSize = 'sm' | 'md' | 'lg' | 'xl'
 
 export type NoteKind = 'note' | 'journal'
 
