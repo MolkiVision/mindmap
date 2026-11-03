@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { PanelLeftOpen } from 'lucide-react'
 import { useStore } from './lib/store'
 import { Sidebar } from './components/Sidebar'
 import { MapView } from './components/MapView'
@@ -14,8 +15,9 @@ export default function App() {
   const view = useStore((s) => s.view)
   const theme = useStore((s) => s.theme)
   const inspectorOpen = useStore((s) => s.inspectorOpen)
+  const sidebarOpen = useStore((s) => s.sidebarOpen)
   const paletteOpen = useStore((s) => s.paletteOpen)
-  const { load, setPaletteOpen } = useStore()
+  const { load, setPaletteOpen, setSidebarOpen } = useStore()
   const [help, setHelp] = useState(false)
 
   useEffect(() => {
@@ -31,6 +33,9 @@ export default function App() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         setPaletteOpen(!useStore.getState().paletteOpen)
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        setSidebarOpen(!useStore.getState().sidebarOpen)
       } else if (e.key === 'Escape' && help) setHelp(false)
       else if (e.key === '?' && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
         e.preventDefault()
@@ -39,7 +44,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [setPaletteOpen, help])
+  }, [setPaletteOpen, setSidebarOpen, help])
 
   useEffect(() => {
     const onHash = () => {
@@ -63,9 +68,14 @@ export default function App() {
 
   const showInspector = view.kind === 'map' && inspectorOpen
   return (
-    <div className={`app ${showInspector ? 'inspector-open' : ''}`}>
-      <Sidebar onHelp={() => setHelp(true)} />
+    <div className={`app ${showInspector ? 'inspector-open' : ''} ${sidebarOpen ? '' : 'sidebar-closed'}`}>
+      {sidebarOpen && <Sidebar onHelp={() => setHelp(true)} />}
       <main className="main">
+        {!sidebarOpen && (
+          <button className="icon-btn sidebar-reopen" title="Otvoriť ľavý panel (Ctrl+B)" onClick={() => setSidebarOpen(true)}>
+            <PanelLeftOpen size={16} />
+          </button>
+        )}
         {view.kind === 'map' && <MapView key={view.mapId} mapId={view.mapId} onHelp={() => setHelp(true)} />}
         {view.kind === 'notes' && <NotesView noteId={view.noteId} />}
         {view.kind === 'journal' && <JournalView date={view.date} />}

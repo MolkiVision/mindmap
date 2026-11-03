@@ -33,6 +33,8 @@ export interface AppState {
   paletteOpen: boolean
   theme: 'dark' | 'light'
   inspectorOpen: boolean
+  sidebarOpen: boolean
+  setSidebarOpen: (v: boolean) => void
   /** default text size for nodes without their own */
   defaultNodeSize: NodeSize
   /** wrap width for node text without a fixed width */
@@ -320,6 +322,9 @@ export const useStore = create<AppState>()((set, get) => {
     const customTypes = (sett['relationTypes']?.value as RelationType[] | undefined) ?? []
     const theme = (sett['theme']?.value as 'dark' | 'light' | undefined) ?? 'dark'
     const showRelations = (sett['showRelations']?.value as boolean | undefined) ?? true
+    const defaultNodeSize = (sett['defaultNodeSize']?.value as NodeSize | undefined) ?? 'md'
+    const nodeMaxWidth = (sett['nodeMaxWidth']?.value as number | undefined) ?? DEFAULT_MAX_TEXT_WIDTH
+    const sidebarOpen = (sett['sidebarOpen']?.value as boolean | undefined) ?? true
     const ids = new Set(DEFAULT_RELATION_TYPES.map((t) => t.id))
     const relationTypes = [...DEFAULT_RELATION_TYPES, ...customTypes.filter((t) => !ids.has(t.id))]
     // earlier versions stored emoji as node icons
@@ -335,6 +340,9 @@ export const useStore = create<AppState>()((set, get) => {
       relationTypes,
       theme,
       showRelations,
+      defaultNodeSize,
+      nodeMaxWidth,
+      sidebarOpen,
     })
     if (maps.length === 0) {
       const { seedDemo } = await import('./seed')
@@ -370,6 +378,11 @@ export const useStore = create<AppState>()((set, get) => {
     paletteOpen: false,
     theme: 'dark',
     inspectorOpen: true,
+    sidebarOpen: true,
+    setSidebarOpen: (v) => {
+      set({ sidebarOpen: v })
+      void db.settings.put({ key: 'sidebarOpen', value: v })
+    },
     defaultNodeSize: 'md',
     nodeMaxWidth: DEFAULT_MAX_TEXT_WIDTH,
     setDefaultNodeSize: (size) => {

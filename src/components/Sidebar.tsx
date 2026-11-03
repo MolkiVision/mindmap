@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { BookOpen, Calendar, Download, FileInput, HelpCircle, Map as MapIcon, Moon, Plus, Search, Sun, Trash2, Upload } from 'lucide-react'
+import { BookOpen, Calendar, Download, FileInput, HelpCircle, Map as MapIcon, Moon, PanelLeftClose, Plus, Search, Sun, Trash2, Upload } from 'lucide-react'
 import { parseOutline } from '../lib/export'
 import type { MapPackage } from '../lib/types'
 import { useStore } from '../lib/store'
@@ -12,8 +12,22 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
   const notes = useStore((s) => s.notes)
   const view = useStore((s) => s.view)
   const theme = useStore((s) => s.theme)
-  const { goToMap, setView, createMap, deleteMap, setPaletteOpen, setTheme, exportAll, importAll, importMapPackage, importOutline, ask, notify, setEditing } =
-    useStore()
+  const {
+    goToMap,
+    setView,
+    createMap,
+    deleteMap,
+    setPaletteOpen,
+    setTheme,
+    exportAll,
+    importAll,
+    importMapPackage,
+    importOutline,
+    ask,
+    notify,
+    setEditing,
+    setSidebarOpen,
+  } = useStore()
   const mapFileRef = useRef<HTMLInputElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -54,7 +68,10 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
         <span className="logo">
           <MapIcon size={15} />
         </span>
-        Mapa myšlienok
+        <span className="brand-name">Mapa myšlienok</span>
+        <button className="icon-btn" title="Zasunúť panel (Ctrl+B)" onClick={() => setSidebarOpen(false)}>
+          <PanelLeftClose size={16} />
+        </button>
       </div>
       <button className="search-btn" onClick={() => setPaletteOpen(true)}>
         <Search size={14} /> Hľadať <kbd>Ctrl K</kbd>

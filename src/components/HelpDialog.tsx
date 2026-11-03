@@ -12,6 +12,7 @@ const ROWS: [string, string, boolean?][] = [
   ['Ctrl + . alebo Ctrl + /', 'zbaliť / rozbaliť'],
   ['Ctrl + Z / Ctrl + Shift + Z', 'späť / znova'],
   ['Ctrl + K', 'hľadať čokoľvek'],
+  ['Ctrl + B', 'zasunúť / otvoriť ľavý panel'],
   ['?', 'táto nápoveda'],
   ['Dvojklik na plátno', 'voľná bublina bez rodiča', true],
   ['Ctrl + V', 'vložiť obrázok zo schránky do vybraného uzla'],

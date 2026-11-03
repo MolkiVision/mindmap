@@ -132,6 +132,29 @@ svg.lucide {
 .app.inspector-open {
   grid-template-columns: var(--sidebar-w) 1fr var(--inspector-w);
 }
+.app.sidebar-closed {
+  grid-template-columns: 1fr;
+}
+.app.sidebar-closed.inspector-open {
+  grid-template-columns: 1fr var(--inspector-w);
+}
+.sidebar-reopen {
+  position: absolute;
+  top: 16px;
+  left: 12px;
+  z-index: 6;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+}
+.app.sidebar-closed .map-title-bar {
+  left: 52px;
+}
+.app.sidebar-closed .notes-list .top {
+  padding-left: 52px;
+}
+.app.sidebar-closed .hint {
+  left: 64px;
+}
 .main {
   position: relative;
   min-width: 0;
@@ -159,10 +182,13 @@ svg.lucide {
   align-items: center;
   gap: 8px;
   height: 56px;
-  padding: 0 16px;
+  padding: 0 8px 0 16px;
   font-weight: 500;
   font-size: 15px;
   color: var(--text);
+}
+.sidebar .brand .brand-name {
+  flex: 1;
 }
 .sidebar .brand .logo {
   width: 26px;
