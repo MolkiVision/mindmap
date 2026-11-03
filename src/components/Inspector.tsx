@@ -15,6 +15,7 @@ const SIZES: { id: NodeSize; label: string }[] = [
   { id: 'xl', label: 'XL' },
 ]
 import { EntityPicker } from './EntityPicker'
+import { NodeIcon } from './NodeIcon'
 
 function EntityItem({ r, label, meta, onRemove }: { r: EntityRef; label: string; meta?: string; onRemove?: () => void }) {
   const goToEntity = useStore((s) => s.goToEntity)
@@ -179,7 +180,7 @@ function NodeInspector({ nodeId }: { nodeId: ID }) {
               className={`${(node.icon ?? '') === ic ? 'active' : ''} ${ic ? '' : 'none'}`}
               onClick={() => updateNode(node.id, { icon: ic || null })}
             >
-              {ic || 'bez'}
+              {ic ? <NodeIcon name={ic} /> : 'bez'}
             </button>
           ))}
         </div>
@@ -367,7 +368,9 @@ function MapInspector({ mapId }: { mapId: ID }) {
     <>
       <div className="head">
         <div className="title-row">
-          <div style={{ flex: 1, fontWeight: 600, padding: '6px 8px' }}>{map.title}</div>
+          <div className="title-static" style={{ display: 'flex', alignItems: 'center' }}>
+            {map.title}
+          </div>
           <button className="icon-btn" title="Skryť inšpektor" onClick={() => setInspectorOpen(false)}>
             <PanelRightClose size={16} />
           </button>

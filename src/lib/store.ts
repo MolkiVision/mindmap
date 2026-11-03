@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { db } from './db'
 import { newId, todayISO } from './ids'
-import { DEFAULT_RELATION_TYPES, slugify } from './relations'
+import { DEFAULT_RELATION_TYPES, EMOJI_TO_ICON, slugify } from './relations'
 import { extractWikiLinks, normalizeTitle } from './wiki'
 import type { Backup, EntityKind, EntityRef, ID, Link, MapNode, MindMap, NodeSize, Note, RelationType, View } from './types'
 import { DEFAULT_MAX_TEXT_WIDTH, MAX_NODE_WIDTH, MIN_NODE_WIDTH } from './layout'
@@ -290,6 +290,10 @@ export const useStore = create<AppState>()((set, get) => {
     const showRelations = (sett['showRelations']?.value as boolean | undefined) ?? true
     const ids = new Set(DEFAULT_RELATION_TYPES.map((t) => t.id))
     const relationTypes = [...DEFAULT_RELATION_TYPES, ...customTypes.filter((t) => !ids.has(t.id))]
+    // earlier versions stored emoji as node icons
+    const migrated = nodes.filter((n) => n.icon && EMOJI_TO_ICON[n.icon]).map((n) => ({ ...n, icon: EMOJI_TO_ICON[n.icon!] }))
+    for (const m of migrated) nodes[nodes.findIndex((n) => n.id === m.id)] = m
+    if (migrated.length) void db.nodes.bulkPut(migrated)
     set({
       maps: dict(maps),
       nodes: dict(nodes),

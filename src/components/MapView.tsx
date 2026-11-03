@@ -33,7 +33,7 @@ import {
 } from 'lucide-react'
 import { childrenOf, subtreeIds, useStore } from '../lib/store'
 import { clearMeasureCache, fontFor, layoutMindMap, measureNode, type LaidOutNode } from '../lib/layout'
-import { BRANCH_COLORS, ROOT_COLOR } from '../lib/relations'
+import { BRANCH_COLORS } from '../lib/relations'
 import { download, mapToMarkdown, mapToOPML, safeName } from '../lib/export'
 import type { ID, MapNode } from '../lib/types'
 import { MindNode, type MindNodeType } from './MindNode'
@@ -160,9 +160,9 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
       const n = byId[id]
       const lo = layout.get(id)
       let c: string
-      if (!n) c = ROOT_COLOR
+      if (!n) c = 'var(--text-muted)'
       else if (n.color) c = n.color
-      else if (!n.parentId) c = ROOT_COLOR
+      else if (!n.parentId) c = 'var(--text-muted)'
       else if (lo && lo.depth === 1) c = BRANCH_COLORS[lo.branch % BRANCH_COLORS.length]
       else c = colorOf(n.parentId)
       colorCache.set(id, c)
@@ -564,7 +564,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
         deleteKeyCode={null}
         multiSelectionKeyCode={null}
       >
-        <Background variant={BackgroundVariant.Dots} gap={22} size={1.4} color="var(--grid)" />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color="var(--grid)" />
         <Controls showInteractive={false} position="bottom-left" />
         <MiniMap
           pannable
@@ -572,7 +572,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
           position="bottom-right"
           nodeColor={(n: Node) => (n.data as { color: string }).color}
           nodeStrokeWidth={0}
-          maskColor="rgba(0,0,0,0.25)"
+          maskColor="rgba(0,0,0,0.2)"
         />
       </ReactFlow>
       <div className="hint">

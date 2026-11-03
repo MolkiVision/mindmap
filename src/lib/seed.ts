@@ -30,11 +30,11 @@ export async function seedDemo() {
   }
 
   const root = mk(null, 'Vlastná mind-map appka', 0, { id: rootId })
-  const fn = mk(root.id, 'Funkcie', 0, { icon: '⭐' })
-  const tech = mk(root.id, 'Technológie', 1, { icon: '🛠️' })
-  const data = mk(root.id, 'Dátový model', 2, { icon: '🧠' })
-  const design = mk(root.id, 'Dizajn', 3, { icon: '🎯' })
-  const open = mk(root.id, 'Otvorené otázky', 4, { icon: '❓' })
+  const fn = mk(root.id, 'Funkcie', 0, { icon: 'star' })
+  const tech = mk(root.id, 'Technológie', 1, { icon: 'wrench' })
+  const data = mk(root.id, 'Dátový model', 2, { icon: 'brain' })
+  const design = mk(root.id, 'Dizajn', 3, { icon: 'target' })
+  const open = mk(root.id, 'Otvorené otázky', 4, { icon: 'help-circle' })
 
   const editing = mk(fn.id, 'Editovanie klávesnicou (Tab / Enter)', 0)
   const relations = mk(fn.id, 'Vzťahy medzi uzlami', 1)

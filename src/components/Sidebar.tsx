@@ -1,5 +1,5 @@
 import { useRef } from 'react'
-import { BookOpen, Calendar, Download, HelpCircle, Map as MapIcon, Moon, Plus, Search, Sun, Trash2, Upload } from 'lucide-react'
+import { BookOpen, Calendar, Download, HelpCircle, Map as MapIcon, Moon, Plus, Search, Sun, Trash2, Upload, Waypoints } from 'lucide-react'
 import { useStore } from '../lib/store'
 import { todayISO } from '../lib/ids'
 import { exportBackup } from '../lib/export'
@@ -31,12 +31,12 @@ export function Sidebar({ onHelp }: { onHelp: () => void }) {
     <aside className="sidebar">
       <div className="brand">
         <span className="logo">
-          <MapIcon size={15} />
+          <Waypoints size={18} />
         </span>
         Mapa myšlienok
       </div>
       <button className="search-btn" onClick={() => setPaletteOpen(true)}>
-        <Search size={14} /> Hľadať… <kbd>Ctrl K</kbd>
+        <Search size={14} /> Hľadať <kbd>Ctrl K</kbd>
       </button>
       <div className="scroll">
         <div className="section-title">

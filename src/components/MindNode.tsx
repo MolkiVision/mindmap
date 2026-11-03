@@ -2,6 +2,7 @@ import { memo, useLayoutEffect, useRef, useState } from 'react'
 import { Handle, Position, useReactFlow, type Node, type NodeProps } from '@xyflow/react'
 import { FileText, Link2 } from 'lucide-react'
 import { useStore } from '../lib/store'
+import { NodeIcon } from './NodeIcon'
 import type { Side } from '../lib/layout'
 
 export type MindNodeData = {
@@ -178,7 +179,11 @@ function MindNodeImpl({ id, data, selected }: NodeProps<MindNodeType>) {
       <Handle type="source" position={Position.Left} id="sl" />
       <Handle type="source" position={Position.Right} id="sr" />
       <div className="row">
-        {data.icon && <span className="icon">{data.icon}</span>}
+        {data.icon && (
+          <span className="icon">
+            <NodeIcon name={data.icon} />
+          </span>
+        )}
         {data.editing ? <Editor id={id} text={data.text} isRoot={data.isRoot} /> : <div className="text">{data.text}</div>}
       </div>
       {showBadges && !data.editing && (

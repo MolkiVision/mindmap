@@ -21,7 +21,7 @@ export function NotesView({ noteId }: { noteId: ID | null }) {
     <div className="notes-layout">
       <div className="notes-list">
         <div className="top">
-          <input placeholder="Hľadať v poznámkach…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input placeholder="Hľadať v poznámkach" value={q} onChange={(e) => setQ(e.target.value)} />
           <button className="btn primary small" title="Nová poznámka" onClick={() => openNote(createNote())}>
             <Plus size={14} />
           </button>
