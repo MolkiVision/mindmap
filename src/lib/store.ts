@@ -4,6 +4,9 @@ import { newId, todayISO } from './ids'
 import { DEFAULT_RELATION_TYPES, EMOJI_TO_ICON, slugify } from './relations'
 import { extractWikiLinks, normalizeTitle } from './wiki'
 import type { Backup, EntityKind, EntityRef, ID, ImageRec, Link, MapNode, MapPackage, MindMap, NodeSize, Note, RelationType, View } from './types'
+
+/** all = every relation edge, selected = only edges of the selected node, none = hidden */
+export type RelationsMode = 'all' | 'selected' | 'none'
 import { shrinkImage } from './images'
 import { DEFAULT_MAX_TEXT_WIDTH, MAX_NODE_WIDTH, MIN_NODE_WIDTH } from './layout'
 
@@ -29,7 +32,8 @@ export interface AppState {
   editingSeed: string | null
   /** incremented every time we want the canvas to centre on selectedNodeId */
   focusTick: number
-  showRelations: boolean
+  /** which relation edges are drawn on the canvas */
+  relationsMode: RelationsMode
   paletteOpen: boolean
   theme: 'dark' | 'light'
   inspectorOpen: boolean
@@ -65,7 +69,7 @@ export interface AppState {
   goToEntity: (ref: EntityRef) => void
   selectNode: (id: ID | null) => void
   setEditing: (id: ID | null, seed?: string | null) => void
-  setShowRelations: (v: boolean) => void
+  setRelationsMode: (m: RelationsMode) => void
   setPaletteOpen: (v: boolean) => void
   setTheme: (t: 'dark' | 'light') => void
   setInspectorOpen: (v: boolean) => void
@@ -321,7 +325,8 @@ export const useStore = create<AppState>()((set, get) => {
     const sett = dictBy(settings, (s) => s.key)
     const customTypes = (sett['relationTypes']?.value as RelationType[] | undefined) ?? []
     const theme = (sett['theme']?.value as 'dark' | 'light' | undefined) ?? 'dark'
-    const showRelations = (sett['showRelations']?.value as boolean | undefined) ?? true
+    const legacyShow = sett['showRelations']?.value as boolean | undefined
+    const relationsMode = (sett['relationsMode']?.value as RelationsMode | undefined) ?? (legacyShow === false ? 'none' : 'all')
     const defaultNodeSize = (sett['defaultNodeSize']?.value as NodeSize | undefined) ?? 'md'
     const nodeMaxWidth = (sett['nodeMaxWidth']?.value as number | undefined) ?? DEFAULT_MAX_TEXT_WIDTH
     const narrow = typeof window !== 'undefined' && window.innerWidth < 1000
@@ -340,7 +345,7 @@ export const useStore = create<AppState>()((set, get) => {
       images: dict(images),
       relationTypes,
       theme,
-      showRelations,
+      relationsMode,
       defaultNodeSize,
       nodeMaxWidth,
       sidebarOpen,
@@ -376,7 +381,7 @@ export const useStore = create<AppState>()((set, get) => {
     editingNodeId: null,
     editingSeed: null,
     focusTick: 0,
-    showRelations: true,
+    relationsMode: 'all',
     paletteOpen: false,
     theme: 'dark',
     inspectorOpen: true,
@@ -482,9 +487,9 @@ export const useStore = create<AppState>()((set, get) => {
         // keys typed before the editor mounted accumulate in the seed
         editingSeed: id ? (s.editingNodeId === id && seed !== null ? (s.editingSeed ?? '') + seed : seed) : null,
       })),
-    setShowRelations: (v) => {
-      set({ showRelations: v })
-      void db.settings.put({ key: 'showRelations', value: v })
+    setRelationsMode: (m) => {
+      set({ relationsMode: m })
+      void db.settings.put({ key: 'relationsMode', value: m })
     },
     setPaletteOpen: (v) => set({ paletteOpen: v }),
     setTheme: (t) => {

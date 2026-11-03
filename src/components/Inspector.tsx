@@ -410,8 +410,8 @@ function MapInspector({ mapId }: { mapId: ID }) {
   const links = useStore((s) => s.links)
   const notes = useStore((s) => s.notes)
   const relationTypes = useStore((s) => s.relationTypes)
-  const showRelations = useStore((s) => s.showRelations)
-  const { setShowRelations, setInspectorOpen, exportAll, exportMapPackage, deleteMap, ask, setDefaultNodeSize, setNodeMaxWidth } = useStore()
+  const relationsMode = useStore((s) => s.relationsMode)
+  const { setRelationsMode, setInspectorOpen, exportAll, exportMapPackage, deleteMap, ask, setDefaultNodeSize, setNodeMaxWidth } = useStore()
   const defaultNodeSize = useStore((s) => s.defaultNodeSize)
   const nodeMaxWidth = useStore((s) => s.nodeMaxWidth)
   const stats = useMemo(() => {
@@ -490,9 +490,26 @@ function MapInspector({ mapId }: { mapId: ID }) {
       </div>
       <div className="section">
         <h4>Vzťahy na plátne</h4>
-        <label className="toggle" style={{ marginBottom: 10 }}>
-          <input type="checkbox" checked={showRelations} onChange={(e) => setShowRelations(e.target.checked)} /> kresliť vzťahy medzi uzlami
-        </label>
+        <div className="size-row" style={{ marginBottom: 10 }}>
+          {(
+            [
+              ['all', 'všetky'],
+              ['selected', 'len vybraný'],
+              ['none', 'skryť'],
+            ] as const
+          ).map(([m, label]) => (
+            <button key={m} className={relationsMode === m ? 'active' : ''} onClick={() => setRelationsMode(m)}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <div className="empty" style={{ marginBottom: 10 }}>
+          {relationsMode === 'selected'
+            ? 'Hrany vzťahov sa kreslia len pri vybranom uzle. Vzťahy ostávajú v inšpektore.'
+            : relationsMode === 'none'
+              ? 'Hrany vzťahov sú skryté, vzťahy nájdeš v inšpektore uzla.'
+              : 'Všetky vzťahy sú na plátne. Pri výbere uzla sa jeho vzťahy zvýraznia a ostatné stíšia.'}
+        </div>
         <div className="legend">
           {relationTypes
             .filter((t) => t.id !== 'mentions' && t.id !== 'about')

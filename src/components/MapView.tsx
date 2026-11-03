@@ -23,7 +23,9 @@ import {
   GitBranch,
   Image as ImageIcon,
   Keyboard,
+  Focus,
   Link2,
+  Link2Off,
   Maximize,
   Scissors,
   StickyNote,
@@ -70,7 +72,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
   const relationTypes = useStore((s) => s.relationTypes)
   const selectedNodeId = useStore((s) => s.selectedNodeId)
   const editingNodeId = useStore((s) => s.editingNodeId)
-  const showRelations = useStore((s) => s.showRelations)
+  const relationsMode = useStore((s) => s.relationsMode)
   const focusTick = useStore((s) => s.focusTick)
   const theme = useStore((s) => s.theme)
   const paletteOpen = useStore((s) => s.paletteOpen)
@@ -95,7 +97,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
     setNodeImage,
     undo,
     redo,
-    setShowRelations,
+    setRelationsMode,
     setInspectorOpen,
     renameMap,
   } = useStore()
@@ -245,9 +247,10 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
         })
       }
     }
-    if (showRelations) {
+    if (relationsMode !== 'none') {
       for (const l of Object.values(links)) {
         if (l.fromKind !== 'node' || l.toKind !== 'node') continue
+        if (relationsMode === 'selected' && l.fromId !== selectedNodeId && l.toId !== selectedNodeId) continue
         const a = layout.get(l.fromId)
         const b = layout.get(l.toId)
         if (!a || !b) continue
@@ -275,7 +278,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
     }
     return { nodes, edges, layout }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, mapNodes, links, notes, images, relationTypes, selectedNodeId, editingNodeId, showRelations, dropTargetId, fontEpoch, defaultNodeSize, nodeMaxWidth])
+  }, [map, mapNodes, links, notes, images, relationTypes, selectedNodeId, editingNodeId, relationsMode, dropTargetId, fontEpoch, defaultNodeSize, nodeMaxWidth])
 
   const [rfNodes, setRfNodes] = useState<MindNodeType[]>(computed.nodes)
   useEffect(() => setRfNodes(computed.nodes), [computed.nodes])
@@ -377,6 +380,12 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
         redo()
         return
       }
+      if (mod && !e.shiftKey && e.key.toLowerCase() === 'r') {
+        e.preventDefault()
+        const m = useStore.getState().relationsMode
+        setRelationsMode(m === 'all' ? 'selected' : m === 'selected' ? 'none' : 'all')
+        return
+      }
       if (!node || node.mapId !== mapId) {
         if (e.key === 'Tab' || e.key === 'Enter') {
           e.preventDefault()
@@ -466,7 +475,23 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [mapId, map, computed.layout, paletteOpen, addChild, addSibling, deleteNode, selectNode, setEditing, toggleCollapse, reorderNode, updateNode, undo, redo])
+  }, [
+    mapId,
+    map,
+    computed.layout,
+    paletteOpen,
+    addChild,
+    addSibling,
+    deleteNode,
+    selectNode,
+    setEditing,
+    toggleCollapse,
+    reorderNode,
+    updateNode,
+    setRelationsMode,
+    undo,
+    redo,
+  ])
 
   /* ---------- paste an image into the selected node ---------- */
   useEffect(() => {
@@ -564,8 +589,18 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
           <Redo2 size={17} />
         </button>
         <span className="sep" />
-        <button className={`icon-btn ${showRelations ? 'active' : ''}`} title="Zobraziť vzťahy na plátne" onClick={() => setShowRelations(!showRelations)}>
-          <Link2 size={17} />
+        <button
+          className={`icon-btn ${relationsMode !== 'none' ? 'active' : ''}`}
+          title={
+            relationsMode === 'all'
+              ? 'Vzťahy: všetky (klik: len vybraný uzol)'
+              : relationsMode === 'selected'
+                ? 'Vzťahy: len vybraný uzol (klik: skryť)'
+                : 'Vzťahy: skryté (klik: zobraziť všetky)'
+          }
+          onClick={() => setRelationsMode(relationsMode === 'all' ? 'selected' : relationsMode === 'selected' ? 'none' : 'all')}
+        >
+          {relationsMode === 'all' ? <Link2 size={17} /> : relationsMode === 'selected' ? <Focus size={17} /> : <Link2Off size={17} />}
         </button>
         <button className="icon-btn" title="Rozbaliť všetko" onClick={() => collapseAll(false)}>
           <ChevronsUpDown size={17} />
