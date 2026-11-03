@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
-import { ArrowRight, BookOpen, Calendar, Circle, ExternalLink, PanelRightClose, Plus, X } from 'lucide-react'
+import { ArrowRight, BookOpen, Calendar, Circle, ExternalLink, ImagePlus, PanelRightClose, Plus, Scissors, X } from 'lucide-react'
+import { useRef } from 'react'
+import { nodeCentres } from './MapView'
 import { childrenOf, entityTitle, linksOf, useStore } from '../lib/store'
 import { BRANCH_COLORS, DEPENDENCY_TYPES, NODE_ICONS } from '../lib/relations'
 import { DEFAULT_MAX_TEXT_WIDTH, MAX_NODE_WIDTH, MIN_NODE_WIDTH } from '../lib/layout'
@@ -88,7 +90,23 @@ function NodeInspector({ nodeId }: { nodeId: ID }) {
   const notes = useStore((s) => s.notes)
   const links = useStore((s) => s.links)
   const relationTypes = useStore((s) => s.relationTypes)
-  const { updateNode, setNodeWidth, selectNode, addLink, removeLink, createNote, openNote, goToEntity, setInspectorOpen } = useStore()
+  const {
+    updateNode,
+    setNodeWidth,
+    selectNode,
+    addLink,
+    removeLink,
+    createNote,
+    openNote,
+    goToEntity,
+    setInspectorOpen,
+    setNodeImage,
+    removeNodeImage,
+    detachNode,
+    setLightbox,
+  } = useStore()
+  const image = useStore((s) => (s.nodes[nodeId]?.image ? s.images[s.nodes[nodeId].image!] : undefined))
+  const fileRef = useRef<HTMLInputElement>(null)
   const [picker, setPicker] = useState<null | 'relation' | 'note'>(null)
 
   const { outgoing, incoming } = useMemo(() => linksOf(links, { kind: 'node', id: nodeId }), [links, nodeId])
@@ -157,7 +175,40 @@ function NodeInspector({ nodeId }: { nodeId: ID }) {
             </span>
           ))}
           {kids.length > 0 && <span>· {kids.length} podradených</span>}
+          {!node.parentId && maps[node.mapId]?.rootId !== node.id && <span>· voľná bublina</span>}
         </div>
+      </div>
+
+      <div className="section">
+        <h4>
+          Obrázok
+          <span style={{ display: 'flex', gap: 4 }}>
+            {image && (
+              <button className="btn small ghost" onClick={() => removeNodeImage(node.id)}>
+                odstrániť
+              </button>
+            )}
+            <button className="btn small ghost" onClick={() => fileRef.current?.click()}>
+              <ImagePlus size={13} /> {image ? 'vymeniť' : 'nahrať'}
+            </button>
+          </span>
+        </h4>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          hidden
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) void setNodeImage(node.id, f)
+            e.target.value = ''
+          }}
+        />
+        {image ? (
+          <img className="insp-thumb" src={image.dataUrl} alt="" onClick={() => setLightbox(image.id)} title="Otvoriť v plnej veľkosti" />
+        ) : (
+          <div className="empty">Nahraj súbor alebo vlož obrázok zo schránky (Ctrl+V) pri vybranom uzle. Zobrazí sa v bubline ako náhľad do 256 px.</div>
+        )}
       </div>
 
       <div className="section">
@@ -325,13 +376,30 @@ function NodeInspector({ nodeId }: { nodeId: ID }) {
         </div>
       </div>
 
-      {node.parentId === null && (
-        <div className="section">
+      <div className="section">
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           <button className="btn ghost small" onClick={() => goToEntity({ kind: 'node', id: node.id })}>
-            <ExternalLink size={13} /> vycentrovať koreň
+            <ExternalLink size={13} /> vycentrovať
           </button>
+          {node.parentId && (
+            <button
+              className="btn ghost small"
+              title="Uzol aj s podstromom sa stane voľnou bublinou na mieste, kde je teraz"
+              onClick={() => {
+                const c = nodeCentres.get(node.id)
+                if (c) detachNode(node.id, c.cx, c.cy)
+              }}
+            >
+              <Scissors size={13} /> odtrhnúť zo stromu
+            </button>
+          )}
         </div>
-      )}
+        {!node.parentId && maps[node.mapId]?.rootId !== node.id && (
+          <div className="empty" style={{ marginTop: 8 }}>
+            Voľnú bublinu presunieš ťahaním. Ťahaním na iný uzol sa stane jeho podradenou.
+          </div>
+        )}
+      </div>
     </>
   )
 }

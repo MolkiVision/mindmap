@@ -28,6 +28,9 @@ vytvorí ukážková mapa s poznámkami a zápisom v denníku.
 - Uzly s automatickým vyváženým rozložením (koreň v strede, vetvy vľavo a vpravo), farba vetvy sa dedí, vlastná farba a ikona uzla.
 - Editovanie klávesnicou: `Tab` podradený, `Enter` súrodenec, `Space`/`F2`/dvojklik úprava, písanie nahradí text, `Delete` zmaže podstrom, šípky navigujú, `Ctrl+↑/↓` presúva medzi súrodencami, `Ctrl+.` zbalí/rozbalí, `Ctrl+Z` / `Ctrl+Shift+Z` späť/znova.
 - Presun uzla ťahaním na iný uzol (stane sa jeho podradeným).
+- Voľné bubliny bez rodiča: dvojklik na plátno alebo tlačidlo v lište, ťahanie kamkoľvek, pozícia sa uloží. Ťahaním na uzol sa pripoja, uzol stromu sa dá „odtrhnúť" aj s podstromom.
+- Obrázok v uzle: nahrať v inšpektore alebo vložiť zo schránky (Ctrl+V) pri vybranom uzle. Zobrazí sa ako náhľad do 256 px, dvojklik otvorí plnú veľkosť. Obrázky sa zmenšia na 640 px a ukladajú lokálne.
+- Šírka uzla ťahaním okraja, veľkosť textu S/M/L/XL, predvolené hodnoty pre mapu.
 - Zbalenie vetvy s počítadlom skrytých uzlov, mini-mapa, zoom, prispôsobenie zobrazenia.
 - Export PNG, Markdown osnova, OPML (ide načítať do XMind / Freeplane), JSON záloha všetkého.
 - Tmavý a svetlý režim.
@@ -61,7 +64,8 @@ vytvorí ukážková mapa s poznámkami a zápisom v denníku.
 ### Dátový model (`src/lib/types.ts`)
 
 - `MindMap` – mapa a jej koreňový uzol.
-- `MapNode` – uzol stromu: `parentId`, `order`, text, farba, ikona, `collapsed`.
+- `MapNode` – uzol stromu: `parentId`, `order`, text, farba, ikona, `collapsed`, voliteľne `width`, `size`, `image` a pre voľné bubliny (`parentId: null` mimo koreňa) pozícia `x`, `y`.
+- `ImageRec` – zmenšený obrázok ako data URL s rozmermi; uzol naň odkazuje cez `image`.
 - `Note` – poznámka alebo zápis denníka (`kind: 'journal'`, `date`).
 - `Link` – smerovaná typovaná väzba medzi ľubovoľnými dvoma entitami (`node` alebo `note`). Väzby s `auto: true` sa generujú z `[[wiki liniek]]` a pri úprave poznámky sa prepočítajú.
 - `RelationType` – typ väzby: `forward` / `inverse` popis, farba, smerovosť. Vstavané typy sú v `src/lib/relations.ts`, vlastné sa ukladajú do nastavení.

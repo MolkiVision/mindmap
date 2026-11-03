@@ -3,7 +3,8 @@ import { db } from './db'
 import { newId, todayISO } from './ids'
 import { DEFAULT_RELATION_TYPES, EMOJI_TO_ICON, slugify } from './relations'
 import { extractWikiLinks, normalizeTitle } from './wiki'
-import type { Backup, EntityKind, EntityRef, ID, Link, MapNode, MindMap, NodeSize, Note, RelationType, View } from './types'
+import type { Backup, EntityKind, EntityRef, ID, ImageRec, Link, MapNode, MindMap, NodeSize, Note, RelationType, View } from './types'
+import { shrinkImage } from './images'
 import { DEFAULT_MAX_TEXT_WIDTH, MAX_NODE_WIDTH, MIN_NODE_WIDTH } from './layout'
 
 interface Snapshot {
@@ -19,6 +20,7 @@ export interface AppState {
   notes: Record<ID, Note>
   links: Record<ID, Link>
   relationTypes: RelationType[]
+  images: Record<ID, ImageRec>
 
   view: View
   selectedNodeId: ID | null
@@ -44,6 +46,9 @@ export interface AppState {
   redoStack: Snapshot[]
   /** in-app replacement for window.confirm / alert (native dialogs are blocked in sandboxed hosts) */
   dialog: { message: string; confirm: boolean; resolve: (ok: boolean) => void } | null
+  /** image id shown full-size in an overlay */
+  lightbox: ID | null
+  setLightbox: (id: ID | null) => void
   ask: (message: string) => Promise<boolean>
   notify: (message: string) => Promise<void>
 
@@ -74,6 +79,14 @@ export interface AppState {
   updateNode: (id: ID, patch: Partial<Pick<MapNode, 'text' | 'color' | 'icon' | 'collapsed' | 'width' | 'size'>>) => void
   deleteNode: (id: ID) => void
   moveNode: (id: ID, newParentId: ID, index?: number) => void
+  /** create a free node (no parent) centred at the given canvas position */
+  addFloatingNode: (mapId: ID, cx: number, cy: number, text?: string) => ID
+  /** move a free node; cx/cy are canvas centre coordinates */
+  setNodePosition: (id: ID, cx: number, cy: number) => void
+  /** cut a node (with its subtree) out of the tree and leave it free at the given position */
+  detachNode: (id: ID, cx: number, cy: number) => void
+  setNodeImage: (id: ID, file: File) => Promise<void>
+  removeNodeImage: (id: ID) => void
   reorderNode: (id: ID, delta: number) => void
   toggleCollapse: (id: ID) => void
   expandAncestors: (id: ID) => void
@@ -166,6 +179,17 @@ export const useStore = create<AppState>()((set, get) => {
       if (changed.length) await db.links.bulkPut(changed)
       if (removed.length) await db.links.bulkDelete(removed)
     })
+  }
+  /** remove image records that belonged to nodes being deleted (call before the nodes leave the store) */
+  const dropImagesOf = (nodeIds: ID[]) => {
+    const imgs = nodeIds.map((id) => get().nodes[id]?.image).filter((x): x is string => !!x)
+    if (!imgs.length) return
+    set((s) => {
+      const images = { ...s.images }
+      for (const i of imgs) delete images[i]
+      return { images }
+    })
+    void db.images.bulkDelete(imgs as ID[])
   }
   const touchMap = (mapId: ID) => {
     const m = get().maps[mapId]
@@ -277,12 +301,13 @@ export const useStore = create<AppState>()((set, get) => {
   }
 
   const doLoad = async () => {
-    const [maps, nodes, notes, links, settings] = await Promise.all([
+    const [maps, nodes, notes, links, settings, images] = await Promise.all([
       db.maps.toArray(),
       db.nodes.toArray(),
       db.notes.toArray(),
       db.links.toArray(),
       db.settings.toArray(),
+      db.images.toArray(),
     ])
     const sett = dictBy(settings, (s) => s.key)
     const customTypes = (sett['relationTypes']?.value as RelationType[] | undefined) ?? []
@@ -299,6 +324,7 @@ export const useStore = create<AppState>()((set, get) => {
       nodes: dict(nodes),
       notes: dict(notes),
       links: dict(links),
+      images: dict(images),
       relationTypes,
       theme,
       showRelations,
@@ -327,6 +353,7 @@ export const useStore = create<AppState>()((set, get) => {
     notes: {},
     links: {},
     relationTypes: DEFAULT_RELATION_TYPES,
+    images: {},
     view: { kind: 'map', mapId: '' },
     selectedNodeId: null,
     editingNodeId: null,
@@ -358,6 +385,8 @@ export const useStore = create<AppState>()((set, get) => {
     undoStack: [],
     redoStack: [],
     dialog: null,
+    lightbox: null,
+    setLightbox: (id) => set({ lightbox: id }),
     ask: (message) =>
       new Promise<boolean>((resolve) => {
         set({
@@ -481,6 +510,7 @@ export const useStore = create<AppState>()((set, get) => {
         .filter((n) => n.mapId === id)
         .map((n) => n.id)
       removeLinksTouching(new Set(ids), 'node')
+      dropImagesOf(ids)
       set((s) => {
         const maps = { ...s.maps }
         delete maps[id]
@@ -577,13 +607,14 @@ export const useStore = create<AppState>()((set, get) => {
     },
     deleteNode: (id) => {
       const n = get().nodes[id]
-      if (!n || !n.parentId) return // never delete the root
+      if (!n || get().maps[n.mapId]?.rootId === id) return // never delete the root
       pushUndo(n.mapId)
       const ids = subtreeIds(get().nodes, id)
       removeLinksTouching(new Set(ids), 'node')
-      const siblings = childrenOf(get().nodes, n.parentId)
+      dropImagesOf(ids)
+      const siblings = n.parentId ? childrenOf(get().nodes, n.parentId) : []
       const idx = siblings.findIndex((s) => s.id === id)
-      const nextSel = siblings[idx + 1]?.id ?? siblings[idx - 1]?.id ?? n.parentId
+      const nextSel = siblings[idx + 1]?.id ?? siblings[idx - 1]?.id ?? n.parentId ?? null
       set((s) => {
         const nodes = { ...s.nodes }
         for (const nid of ids) delete nodes[nid]
@@ -595,13 +626,13 @@ export const useStore = create<AppState>()((set, get) => {
     moveNode: (id, newParentId, index) => {
       const n = get().nodes[id]
       const p = get().nodes[newParentId]
-      if (!n || !p || !n.parentId || n.mapId !== p.mapId) return
+      if (!n || !p || n.mapId !== p.mapId || get().maps[n.mapId]?.rootId === id) return
       if (subtreeIds(get().nodes, id).includes(newParentId)) return // cannot move into own subtree
       pushUndo(n.mapId)
       const t = now()
       const siblings = childrenOf(get().nodes, newParentId).filter((s) => s.id !== id)
       const at = index === undefined ? siblings.length : Math.max(0, Math.min(index, siblings.length))
-      const moved = { ...n, parentId: newParentId, updatedAt: t }
+      const moved = { ...n, parentId: newParentId, x: null, y: null, updatedAt: t }
       const reordered = [...siblings.slice(0, at), moved, ...siblings.slice(at)].map((s, i) => ({ ...s, order: i }))
       const updates: Record<ID, MapNode> = {}
       for (const s of reordered) updates[s.id] = s
@@ -614,6 +645,75 @@ export const useStore = create<AppState>()((set, get) => {
       set((s) => ({ nodes: { ...s.nodes, ...updates } }))
       persistNodes(changed)
       touchMap(n.mapId)
+    },
+    addFloatingNode: (mapId, cx, cy, text = '') => {
+      if (!get().maps[mapId]) return ''
+      pushUndo(mapId)
+      const t = now()
+      const node: MapNode = {
+        id: newId(),
+        mapId,
+        parentId: null,
+        text,
+        color: null,
+        icon: null,
+        collapsed: false,
+        order: 0,
+        x: Math.round(cx),
+        y: Math.round(cy),
+        createdAt: t,
+        updatedAt: t,
+      }
+      set((s) => ({ nodes: { ...s.nodes, [node.id]: node }, selectedNodeId: node.id, editingNodeId: node.id, editingSeed: null }))
+      persistNodes([node])
+      touchMap(mapId)
+      return node.id
+    },
+    setNodePosition: (id, cx, cy) => {
+      const n = get().nodes[id]
+      if (!n || n.parentId || get().maps[n.mapId]?.rootId === id) return
+      const upd = { ...n, x: Math.round(cx), y: Math.round(cy), updatedAt: now() }
+      set((s) => ({ nodes: { ...s.nodes, [id]: upd } }))
+      persistNodes([upd])
+    },
+    detachNode: (id, cx, cy) => {
+      const n = get().nodes[id]
+      if (!n || !n.parentId) return
+      pushUndo(n.mapId)
+      const upd = { ...n, parentId: null, x: Math.round(cx), y: Math.round(cy), updatedAt: now() }
+      set((s) => ({ nodes: { ...s.nodes, [id]: upd } }))
+      persistNodes([upd])
+      touchMap(n.mapId)
+    },
+    setNodeImage: async (id, file) => {
+      const n = get().nodes[id]
+      if (!n || !file.type.startsWith('image/')) return
+      const { dataUrl, w, h } = await shrinkImage(file)
+      const rec: ImageRec = { id: newId(), dataUrl, w, h, createdAt: now() }
+      const old = n.image
+      const upd = { ...n, image: rec.id, updatedAt: now() }
+      set((s) => {
+        const images = { ...s.images, [rec.id]: rec }
+        if (old) delete images[old]
+        return { images, nodes: { ...s.nodes, [id]: upd } }
+      })
+      await db.images.put(rec)
+      if (old) await db.images.delete(old)
+      persistNodes([upd])
+      touchMap(n.mapId)
+    },
+    removeNodeImage: (id) => {
+      const n = get().nodes[id]
+      if (!n || !n.image) return
+      const old = n.image
+      const upd = { ...n, image: null, updatedAt: now() }
+      set((s) => {
+        const images = { ...s.images }
+        delete images[old]
+        return { images, nodes: { ...s.nodes, [id]: upd } }
+      })
+      void db.images.delete(old)
+      persistNodes([upd])
     },
     reorderNode: (id, delta) => {
       const n = get().nodes[id]
@@ -774,15 +874,17 @@ export const useStore = create<AppState>()((set, get) => {
         notes: Object.values(s.notes),
         links: Object.values(s.links),
         relationTypes: s.relationTypes.filter((t) => !t.builtin),
+        images: Object.values(s.images),
       }
     },
     importAll: async (b) => {
-      await db.transaction('rw', db.maps, db.nodes, db.notes, db.links, db.settings, async () => {
-        await Promise.all([db.maps.clear(), db.nodes.clear(), db.notes.clear(), db.links.clear()])
+      await db.transaction('rw', [db.maps, db.nodes, db.notes, db.links, db.settings, db.images], async () => {
+        await Promise.all([db.maps.clear(), db.nodes.clear(), db.notes.clear(), db.links.clear(), db.images.clear()])
         await db.maps.bulkPut(b.maps)
         await db.nodes.bulkPut(b.nodes)
         await db.notes.bulkPut(b.notes)
         await db.links.bulkPut(b.links)
+        await db.images.bulkPut(b.images ?? [])
         await db.settings.put({ key: 'relationTypes', value: b.relationTypes ?? [] })
       })
       set({ undoStack: [], redoStack: [], selectedNodeId: null, editingNodeId: null })
@@ -790,8 +892,8 @@ export const useStore = create<AppState>()((set, get) => {
       await get().load()
     },
     resetAll: async () => {
-      await Promise.all([db.maps.clear(), db.nodes.clear(), db.notes.clear(), db.links.clear()])
-      set({ maps: {}, nodes: {}, notes: {}, links: {}, undoStack: [], redoStack: [], selectedNodeId: null })
+      await Promise.all([db.maps.clear(), db.nodes.clear(), db.notes.clear(), db.links.clear(), db.images.clear()])
+      set({ maps: {}, nodes: {}, notes: {}, links: {}, images: {}, undoStack: [], redoStack: [], selectedNodeId: null })
       location.hash = ''
       await get().load()
     },

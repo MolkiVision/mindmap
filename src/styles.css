@@ -471,6 +471,41 @@ kbd {
 .mind-node.related {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--rc, var(--c)) 70%, transparent);
 }
+.mind-node .thumb {
+  display: block;
+  border-radius: 6px;
+  object-fit: cover;
+  margin-bottom: 6px;
+  position: relative;
+  background: var(--bg-raised);
+}
+.mind-node.floating {
+  border-style: dashed;
+}
+.mind-node.floating:hover,
+.react-flow__node.selected .mind-node.floating {
+  border-style: solid;
+}
+.insp-thumb {
+  display: block;
+  max-width: 100%;
+  max-height: 200px;
+  border-radius: 8px;
+  cursor: zoom-in;
+  border: 1px solid var(--border);
+}
+.overlay.lightbox {
+  padding: 32px;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.7);
+  cursor: zoom-out;
+}
+.overlay.lightbox img {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
 .mind-node .row {
   display: flex;
   align-items: flex-start;

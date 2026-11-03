@@ -25,6 +25,8 @@ import {
   Keyboard,
   Link2,
   Maximize,
+  Scissors,
+  StickyNote,
   PanelRightOpen,
   Plus,
   Redo2,
@@ -32,7 +34,7 @@ import {
   Undo2,
 } from 'lucide-react'
 import { childrenOf, subtreeIds, useStore } from '../lib/store'
-import { clearMeasureCache, fontFor, layoutMindMap, measureNode, type LaidOutNode } from '../lib/layout'
+import { FLOATING_BRANCH, PAD_X, THUMB_MAX, clearMeasureCache, fontFor, layoutMindMap, measureNode, thumbSize, type LaidOutNode } from '../lib/layout'
 import { BRANCH_COLORS } from '../lib/relations'
 import { download, mapToMarkdown, mapToOPML, safeName } from '../lib/export'
 import type { ID, MapNode } from '../lib/types'
@@ -54,11 +56,17 @@ interface Computed {
   layout: Map<ID, LaidOutNode>
 }
 
+/** last computed centre of every visible node, for actions outside the canvas (e.g. detach from the inspector) */
+export const nodeCentres = new Map<ID, { cx: number; cy: number }>()
+
+const FLOATING_COLOR = '#94a3b8'
+
 function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
   const map = useStore((s) => s.maps[mapId])
   const allNodes = useStore((s) => s.nodes)
   const links = useStore((s) => s.links)
   const notes = useStore((s) => s.notes)
+  const images = useStore((s) => s.images)
   const relationTypes = useStore((s) => s.relationTypes)
   const selectedNodeId = useStore((s) => s.selectedNodeId)
   const editingNodeId = useStore((s) => s.editingNodeId)
@@ -81,6 +89,10 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
     reorderNode,
     toggleCollapse,
     updateNode,
+    addFloatingNode,
+    setNodePosition,
+    detachNode,
+    setNodeImage,
     undo,
     redo,
     setShowRelations,
@@ -149,8 +161,11 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
           size: sizeOfNode(n, isRoot),
           maxTextWidth: nodeMaxWidth,
           fixedWidth: n.width ?? null,
+          image: n.image && images[n.image] ? { w: images[n.image].w, h: images[n.image].h } : null,
         }),
     })
+    nodeCentres.clear()
+    for (const lo of layout.values()) nodeCentres.set(lo.id, { cx: lo.cx, cy: lo.cy })
 
     // colour: explicit colour on the nearest ancestor, else branch palette
     const colorCache = new Map<ID, string>()
@@ -162,8 +177,8 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
       let c: string
       if (!n) c = '#8b5cf6'
       else if (n.color) c = n.color
-      else if (!n.parentId) c = '#8b5cf6'
-      else if (lo && lo.depth === 1) c = BRANCH_COLORS[lo.branch % BRANCH_COLORS.length]
+      else if (!n.parentId) c = id === map.rootId ? '#8b5cf6' : FLOATING_COLOR
+      else if (lo && lo.depth === 1 && lo.branch >= 0) c = BRANCH_COLORS[lo.branch % BRANCH_COLORS.length]
       else c = colorOf(n.parentId)
       colorCache.set(id, c)
       return c
@@ -184,6 +199,8 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
     for (const lo of layout.values()) {
       const n = byId[lo.id]
       const f = fontFor({ isRoot: lo.depth === 0, size: sizeOfNode(n, lo.depth === 0) })
+      const img = n.image ? images[n.image] : undefined
+      const thumb = img ? thumbSize(img, (n.width ?? lo.width) - PAD_X > 0 ? Math.min(THUMB_MAX, lo.width - PAD_X) : THUMB_MAX) : null
       nodes.push({
         id: lo.id,
         type: 'mind',
@@ -204,6 +221,8 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
           fixedWidth: n.width ?? null,
           fontPx: f.font,
           lineH: f.line,
+          image: img && thumb ? { id: img.id, url: img.dataUrl, w: thumb.w, h: thumb.h } : null,
+          floating: lo.branch === FLOATING_BRANCH && lo.depth === 1,
           editing: editingNodeId === lo.id,
           dropTarget: dropTargetId === lo.id,
           relatedColor: relatedColor.get(lo.id) ?? null,
@@ -252,7 +271,7 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
     }
     return { nodes, edges, layout }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, mapNodes, links, notes, relationTypes, selectedNodeId, editingNodeId, showRelations, dropTargetId, fontEpoch, defaultNodeSize, nodeMaxWidth])
+  }, [map, mapNodes, links, notes, images, relationTypes, selectedNodeId, editingNodeId, showRelations, dropTargetId, fontEpoch, defaultNodeSize, nodeMaxWidth])
 
   const [rfNodes, setRfNodes] = useState<MindNodeType[]>(computed.nodes)
   useEffect(() => setRfNodes(computed.nodes), [computed.nodes])
@@ -299,10 +318,16 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
     (_e, node) => {
       const target = dropTargetId
       setDropTargetId(null)
+      const n = useStore.getState().nodes[node.id]
+      const isFree = n && n.parentId === null && n.id !== map.rootId
       if (target && target !== node.id) moveNode(node.id, target)
-      else setRfNodes(computed.nodes.map((n) => ({ ...n })))
+      else if (isFree) {
+        const w = node.measured?.width ?? node.data.width
+        const h = node.measured?.height ?? 40
+        setNodePosition(node.id, node.position.x + w / 2, node.position.y + h / 2)
+      } else setRfNodes(computed.nodes.map((n) => ({ ...n })))
     },
-    [dropTargetId, moveNode, computed.nodes],
+    [dropTargetId, moveNode, setNodePosition, computed.nodes, map],
   )
 
   /* ---------- keyboard ---------- */
@@ -439,6 +464,34 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [mapId, map, computed.layout, paletteOpen, addChild, addSibling, deleteNode, selectNode, setEditing, toggleCollapse, reorderNode, updateNode, undo, redo])
 
+  /* ---------- paste an image into the selected node ---------- */
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (isTypingTarget(e.target) || paletteOpen) return
+      const sel = useStore.getState().selectedNodeId
+      if (!sel) return
+      const file = [...(e.clipboardData?.files ?? [])].find((f) => f.type.startsWith('image/'))
+      if (!file) return
+      e.preventDefault()
+      void setNodeImage(sel, file)
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  }, [paletteOpen, setNodeImage])
+
+  const addFree = (clientX?: number, clientY?: number) => {
+    const rect = wrapRef.current?.getBoundingClientRect()
+    if (!rect) return
+    const pt = rf.screenToFlowPosition({ x: clientX ?? rect.left + rect.width / 2, y: clientY ?? rect.top + rect.height / 2 })
+    addFloatingNode(mapId, pt.x, pt.y)
+  }
+
+  const detachSelected = () => {
+    const sel = useStore.getState().selectedNodeId
+    const c = sel ? nodeCentres.get(sel) : undefined
+    if (sel && c) detachNode(sel, c.cx, c.cy)
+  }
+
   /* ---------- export ---------- */
   const exportPng = async () => {
     const el = wrapRef.current?.querySelector<HTMLElement>('.react-flow__viewport')
@@ -490,7 +543,13 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
         <button className="icon-btn" title="Pridať súrodenca (Enter)" disabled={!sel || !sel.parentId} onClick={() => sel && addSibling(sel.id)}>
           <GitBranch size={17} />
         </button>
-        <button className="icon-btn danger" title="Zmazať (Delete)" disabled={!sel || !sel.parentId} onClick={() => sel && deleteNode(sel.id)}>
+        <button className="icon-btn" title="Voľná bublina (dvojklik na plátno)" onClick={() => addFree()}>
+          <StickyNote size={17} />
+        </button>
+        <button className="icon-btn" title="Odtrhnúť zo stromu" disabled={!sel || !sel.parentId} onClick={detachSelected}>
+          <Scissors size={17} />
+        </button>
+        <button className="icon-btn danger" title="Zmazať (Delete)" disabled={!sel || sel.id === map.rootId} onClick={() => sel && deleteNode(sel.id)}>
           <Trash2 size={17} />
         </button>
         <span className="sep" />
@@ -550,6 +609,9 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
           selectNode(null)
           if (editingNodeId) setEditing(null)
         }}
+        onDoubleClick={(e) => {
+          if ((e.target as HTMLElement).classList?.contains('react-flow__pane')) addFree(e.clientX, e.clientY)
+        }}
         onNodeDrag={onNodeDrag}
         onNodeDragStop={onNodeDragStop}
         nodesConnectable={false}
@@ -588,8 +650,28 @@ function Canvas({ mapId, onHelp }: { mapId: ID; onHelp: () => void }) {
         <span>
           <kbd>Ctrl</kbd>+<kbd>K</kbd> hľadať
         </span>
+        <span>dvojklik na plátno = voľná bublina</span>
         <span>ťahaj uzol na iný = presun</span>
       </div>
+      <Lightbox />
+    </div>
+  )
+}
+
+function Lightbox() {
+  const id = useStore((s) => s.lightbox)
+  const img = useStore((s) => (s.lightbox ? s.images[s.lightbox] : undefined))
+  const setLightbox = useStore((s) => s.setLightbox)
+  useEffect(() => {
+    if (!id) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setLightbox(null)
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [id, setLightbox])
+  if (!id || !img) return null
+  return (
+    <div className="overlay lightbox" onMouseDown={() => setLightbox(null)}>
+      <img src={img.dataUrl} alt="" />
     </div>
   )
 }

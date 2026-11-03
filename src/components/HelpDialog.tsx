@@ -13,6 +13,8 @@ const ROWS: [string, string, boolean?][] = [
   ['Ctrl + Z / Ctrl + Shift + Z', 'späť / znova'],
   ['Ctrl + K', 'hľadať čokoľvek'],
   ['?', 'táto nápoveda'],
+  ['Dvojklik na plátno', 'voľná bublina bez rodiča', true],
+  ['Ctrl + V', 'vložiť obrázok zo schránky do vybraného uzla'],
   ['Ťahanie uzla na iný uzol', 'presunúť pod iný uzol', true],
   ['Koliesko alebo ťahanie plátna', 'posun, Ctrl + koliesko: zoom', true],
 ]

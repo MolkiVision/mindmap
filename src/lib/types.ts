@@ -21,8 +21,22 @@ export interface MapNode {
   width?: number | null
   /** text size preset; null = map default */
   size?: NodeSize | null
+  /** centre position of a free (parentless, non-root) node in canvas units */
+  x?: number | null
+  y?: number | null
+  /** id of an attached image (see ImageRec) */
+  image?: string | null
   createdAt: number
   updatedAt: number
+}
+
+/** image stored in the browser; dataUrl is already downscaled */
+export interface ImageRec {
+  id: ID
+  dataUrl: string
+  w: number
+  h: number
+  createdAt: number
 }
 
 export type NodeSize = 'sm' | 'md' | 'lg' | 'xl'
@@ -86,4 +100,5 @@ export interface Backup {
   notes: Note[]
   links: Link[]
   relationTypes: RelationType[]
+  images?: ImageRec[]
 }

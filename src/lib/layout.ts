@@ -28,7 +28,7 @@ const V_GAP = 14 // vertical distance between siblings
 export const DEFAULT_MAX_TEXT_WIDTH = 240
 export const MIN_NODE_WIDTH = 96
 export const MAX_NODE_WIDTH = 720
-const PAD_X = 36 // padding 2×14 + border 2×1.5 + safety
+export const PAD_X = 36 // padding 2×14 + border 2×1.5 + safety
 const PAD_Y = 20
 
 export const SIZE_PRESETS: Record<NodeSize, { font: number; line: number }> = {
@@ -47,6 +47,17 @@ export interface MeasureOpts {
   maxTextWidth: number
   /** fixed node width set by the user */
   fixedWidth: number | null
+  /** attached image dimensions, if any */
+  image: { w: number; h: number } | null
+}
+
+export const THUMB_MAX = 256
+export const THUMB_GAP = 8
+
+/** displayed thumbnail size for a node of the given inner width */
+export function thumbSize(img: { w: number; h: number }, innerWidth: number) {
+  const w = Math.min(THUMB_MAX, innerWidth, img.w)
+  return { w: Math.round(w), h: Math.round((w * img.h) / img.w) }
 }
 
 export function fontFor(o: Pick<MeasureOpts, 'isRoot' | 'size'>) {
@@ -72,7 +83,7 @@ export function clearMeasureCache() {
 
 /** Estimate the rendered size of a node for the given text (word-wrapped). */
 export function measureNode(text: string, o: MeasureOpts): Size {
-  const key = `${o.isRoot ? 'R' : 'N'}|${o.hasBadges ? 'B' : '-'}|${o.hasIcon ? 'I' : '-'}|${o.size}|${o.maxTextWidth}|${o.fixedWidth ?? 'a'}|${text}`
+  const key = `${o.isRoot ? 'R' : 'N'}|${o.hasBadges ? 'B' : '-'}|${o.hasIcon ? 'I' : '-'}|${o.size}|${o.maxTextWidth}|${o.fixedWidth ?? 'a'}|${o.image ? `${o.image.w}x${o.image.h}` : '-'}|${text}`
   const cached = measureCache.get(key)
   if (cached) return cached
   const c = getCtx()
@@ -96,8 +107,14 @@ export function measureNode(text: string, o: MeasureOpts): Size {
   }
   let maxW = 0
   for (const l of lines) maxW = Math.max(maxW, Math.min(wrapAt, measure(l)))
-  const w = o.fixedWidth ? o.fixedWidth : Math.max(o.isRoot ? 120 : 64, Math.ceil(maxW + iconW + PAD_X))
-  const h = Math.ceil(lines.length * lineH + PAD_Y + (o.hasBadges ? 20 : 0))
+  let w = o.fixedWidth ? o.fixedWidth : Math.max(o.isRoot ? 120 : 64, Math.ceil(maxW + iconW + PAD_X))
+  let h = Math.ceil(lines.length * lineH + PAD_Y + (o.hasBadges ? 20 : 0))
+  if (o.image) {
+    const inner = o.fixedWidth ? o.fixedWidth - PAD_X : THUMB_MAX
+    const t = thumbSize(o.image, inner)
+    if (!o.fixedWidth) w = Math.max(w, t.w + PAD_X)
+    h += t.h + THUMB_GAP
+  }
   const size = { w, h }
   measureCache.set(key, size)
   return size
@@ -115,6 +132,9 @@ export interface LayoutInput {
   rootId: ID
   sizeOf: (n: MapNode, isRoot: boolean) => Size
 }
+
+/** branch index used for free (parentless) nodes */
+export const FLOATING_BRANCH = -2
 
 /**
  * Classic balanced mind-map layout: root in the centre, first half of the
@@ -207,6 +227,13 @@ export function layoutMindMap({ nodes, rootId, sizeOf }: LayoutInput): Map<ID, L
   }
   placeSide(right, 'right', 0)
   placeSide(left, 'left', rightCount)
+
+  // free nodes: each is the root of its own small tree, children to the right
+  for (const f of nodes) {
+    if (f.parentId !== null || f.id === rootId) continue
+    const t = build(f, false)
+    place(t, f.x ?? 0, f.y ?? 0, 'right', 1, FLOATING_BRANCH)
+  }
 
   return out
 }

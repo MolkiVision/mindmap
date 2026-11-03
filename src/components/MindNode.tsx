@@ -20,6 +20,8 @@ export type MindNodeData = {
   fixedWidth: number | null
   fontPx: number
   lineH: number
+  image: { id: string; url: string; w: number; h: number } | null
+  floating: boolean
   editing: boolean
   dropTarget: boolean
   relatedColor: string | null
@@ -160,7 +162,16 @@ function ResizeHandle({ id, side, width }: { id: string; side: 'left' | 'right';
 
 function MindNodeImpl({ id, data, selected }: NodeProps<MindNodeType>) {
   const toggleCollapse = useStore((s) => s.toggleCollapse)
-  const cls = ['mind-node', data.isRoot ? 'root' : '', data.dropTarget ? 'drop-target' : '', data.relatedColor && !selected ? 'related' : '']
+  const setLightbox = useStore((s) => s.setLightbox)
+  const cls = [
+    'mind-node',
+    data.isRoot ? 'root' : '',
+    data.dropTarget ? 'drop-target' : '',
+    data.relatedColor && !selected ? 'related' : '',
+    data.hasChildren ? 'has-children' : '',
+    data.side === 'left' ? 'side-left' : '',
+    data.floating ? 'floating' : '',
+  ]
     .filter(Boolean)
     .join(' ')
   const style = {
@@ -178,6 +189,20 @@ function MindNodeImpl({ id, data, selected }: NodeProps<MindNodeType>) {
       <Handle type="target" position={Position.Right} id="tr" />
       <Handle type="source" position={Position.Left} id="sl" />
       <Handle type="source" position={Position.Right} id="sr" />
+      {data.image && (
+        <img
+          className="thumb nodrag"
+          src={data.image.url}
+          alt=""
+          draggable={false}
+          style={{ width: data.image.w, height: data.image.h }}
+          onDoubleClick={(e) => {
+            e.stopPropagation()
+            setLightbox(data.image!.id)
+          }}
+          title="Dvojklik otvorí v plnej veľkosti"
+        />
+      )}
       <div className="row">
         {data.icon && (
           <span className="icon">
